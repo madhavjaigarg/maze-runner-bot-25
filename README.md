@@ -1,2 +1,6 @@
-# maze-runner-bot-HXLS-25
-All the code for the HXLS bot in the 2025 Technoxian Maze runner WRC.
+# maze-runner-bot-25
+Code for a maze-runner-bot.
+
+
+#Note
+DO NOT USE ANY PART OF THIS CODE WITHOUT EXCPLICIT PERMISSION FROM @MADHAVJAIGARG . 
