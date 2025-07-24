@@ -146,7 +146,7 @@ bool atGoal(){
 }
 
 void init(){
-    mazeW=mazeWidth(16); mazeH=mazeHeight(16);
+    mazeW=16; mazeH=16;
     if(mazeW>16) mazeW=16; if(mazeH>16) mazeH=16;
     for(int x=0;x<mazeW;x++){setWallKnown(x,0,S,true);setWallKnown(x,mazeH-1,N,true);} 
     for(int y=0;y<mazeH;y++){setWallKnown(0,y,W,true);setWallKnown(mazeW-1,y,E,true);} 
