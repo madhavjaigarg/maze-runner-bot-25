@@ -7,6 +7,40 @@
 #include <cassert>
 #include <string>
 #include <stdint.h>
+#include <MPU9250_WE.h>
+#include <Wire.h>
+#include <Arduino_APDS9960.h>
+
+ARDUINO_APDS9960 apds;
+bool initAPDS(uint8_t channel) {
+    selectMuxChannel(channel);
+    delay(10); // ensure the channel is set
+    return apds.begin();
+}
+
+void initAPDSSensors() {
+    if (!initAPDS(0)) {
+        Serial.println("Failed to init APDS on channel 0 (Front)");
+        while (1);
+    }
+    if (!initAPDS(1)) {
+        Serial.println("Failed to init APDS on channel 1 (Left)");
+        while (1);
+    }
+    if (!initAPDS(2)) {
+        Serial.println("Failed to init APDS on channel 2 (Right)");
+        while (1);
+    }
+}
+
+#define MUX_ADDR 0x70 // default I2C address for PCS9548A
+
+void selectMuxChannel(uint8_t channel) {
+    if (channel > 7) return;
+    Wire.beginTransmission(MUX_ADDR);
+    Wire.write(1 << channel);
+    Wire.endTransmission();
+}
 
 namespace Mouse {
 
@@ -37,6 +71,70 @@ static std::vector<std::tuple<int,int,Heading>> forwardPath;
 static std::vector<std::tuple<int,int,Heading>> returnPath;
 static bool runFast = false;
 
+//PID
+float kp = 1.2;
+float ki = 0.0;
+float kd = 0.05;
+
+float previousError = 0;
+float integral = 0;
+
+//GYRO
+#define MPU_ADDR 0x68
+MPU9250_WE myMPU = MPU9250_WE(Wire, MPU_ADDR);
+
+bool senseRelative(Heading rel) {
+    const int threshold = 100;
+
+    switch (rel) {
+        case N: // Front sensor on channel 0
+            selectMuxChannel(0);
+            delay(2); // minimal delay
+            if (apds.proximityAvailable()) {
+                return apds.readProximity() > threshold;
+            }
+            break;
+
+        case W: // Left sensor on channel 1
+            selectMuxChannel(1);
+            delay(2);
+            if (apds.proximityAvailable()) {
+                return apds.readProximity() > threshold;
+            }
+            break;
+
+        case E: // Right sensor on channel 2
+            selectMuxChannel(2);
+            delay(2);
+            if (apds.proximityAvailable()) {
+                return apds.readProximity() > threshold;
+            }
+            break;
+
+        case S:
+            return false; // No rear sensor
+    }
+
+    return false;
+}
+
+
+float getWallError() {
+    float leftDistance = senseRelative(W);  // Replace with actual left sensor
+    float rightDistance = senseRelative(E); // Replace with actual right sensor
+
+    float error = leftDistance - rightDistance; // Target is centered
+    return error;
+}
+
+float computePID(float error) {
+    integral += error;
+    float derivative = error - previousError;
+    previousError = error;
+
+    return kp * error + ki * integral + kd * derivative;
+}
+
 inline bool inBounds(int x,int y){return x>=0 && x<mazeW && y>=0 && y<mazeH;}
 
 bool haveWall(int x,int y,Heading h){return maze[x][y].bits & wallMask(h);}        
@@ -55,16 +153,6 @@ void setWallKnown(int x,int y,Heading h,bool wall){
         n.bits |= knownMask(oh);
     }
 }
-//ADD THE SENSORS HERE
-bool senseRelative(Heading rel){
-    switch(rel){
-        case N: return API::wallFront();
-        case E: return API::wallRight();
-        case S: return false; // No back sensor
-        case W: return API::wallLeft();
-    }
-    return false;
-}
 
 bool senseAllSidesAndCheckNew() {
     bool changed = false;
@@ -79,26 +167,107 @@ bool senseAllSidesAndCheckNew() {
 }
 
 //ADD THE SERVO MOTOR CODE
-void turnLeft(){API::turnLeft(); facing_=Heading((int(facing_)+3)&3);} 
-void turnRight(){API::turnRight(); facing_=Heading((int(facing_)+1)&3);} 
+void turnLeft() {
+    float yaw = 0;
+    unsigned long lastTime = millis();
+    const float targetYaw = -90.0; // degrees
+    const int motorSpeed = 100;
+
+    // Start rotating left: left backward, right forward
+    digitalWrite(LEFT_DIR_PIN1, LOW);
+    digitalWrite(LEFT_DIR_PIN2, HIGH);
+    digitalWrite(RIGHT_DIR_PIN1, HIGH);
+    digitalWrite(RIGHT_DIR_PIN2, LOW);
+
+    while (yaw > targetYaw) {
+        myMPU.update();
+        float gyroZ = myMPU.getGyrValues().z;
+
+        unsigned long currentTime = millis();
+        float dt = (currentTime - lastTime) / 1000.0;
+        lastTime = currentTime;
+
+        yaw += gyroZ * dt;
+
+        analogWrite(LEFT_PWM_PIN, motorSpeed);
+        analogWrite(RIGHT_PWM_PIN, motorSpeed);
+    }
+
+    // Stop motors
+    analogWrite(LEFT_PWM_PIN, 0);
+    analogWrite(RIGHT_PWM_PIN, 0);
+}
+
+
+void turnRight() {
+    float yaw = 0;
+    unsigned long lastTime = millis();
+    const float targetYaw = 90.0; // degrees
+    const int motorSpeed = 100;
+
+    // Start rotating right: left forward, right backward
+    digitalWrite(LEFT_DIR_PIN1, HIGH);
+    digitalWrite(LEFT_DIR_PIN2, LOW);
+    digitalWrite(RIGHT_DIR_PIN1, LOW);
+    digitalWrite(RIGHT_DIR_PIN2, HIGH);
+
+    while (yaw < targetYaw) {
+        myMPU.update();
+        float gyroZ = myMPU.getGyrValues().z; // deg/s
+
+        unsigned long currentTime = millis();
+        float dt = (currentTime - lastTime) / 1000.0;
+        lastTime = currentTime;
+
+        yaw += gyroZ * dt;
+
+        analogWrite(LEFT_PWM_PIN, motorSpeed);
+        analogWrite(RIGHT_PWM_PIN, motorSpeed);
+    }
+
+    // Stop motors
+    analogWrite(LEFT_PWM_PIN, 0);
+    analogWrite(RIGHT_PWM_PIN, 0);
+}
+
 void face(Heading h){
     int dt=((int)h-(int)facing_)&3;
     if(dt==1) turnRight();
     else if(dt==3) turnLeft();
     else if(dt==2){turnRight();turnRight();}
 }
-//CALIBRATE SERVO MOTOR
-void stepForward(){
-    API::moveForward();
-    if(facing_==N) y_++;
-    else if(facing_==E) x_++;
-    else if(facing_==S) y_--;
-    else x_--;
-    if(!inBounds(x_,y_)) {
-        std::cerr<<"Out of bounds: ("<<x_<<","<<y_<<")"<<std::endl;
-        std::terminate();
-    }
+//ADD MOTOR CALIBRATION
+void setMotorPWM(int leftPWM, int rightPWM) {
+    analogWrite(LEFT_MOTOR_PIN, constrain(leftPWM, 0, 255));
+    analogWrite(RIGHT_MOTOR_PIN, constrain(rightPWM, 0, 255));
 }
+
+//CALIBRATE SERVO MOTOR
+void stepForward() {
+    const int baseSpeed = 120;
+    const int stepTime = 300; // ms to move one cell — tune this
+    unsigned long startTime = millis();
+
+    while (millis() - startTime < stepTime) {
+        float error = getWallError();
+        float correction = computePID(error);
+
+        int leftPWM = baseSpeed - correction;
+        int rightPWM = baseSpeed + correction;
+
+        setMotorPWM(leftPWM, rightPWM);
+    }
+
+    setMotorPWM(0, 0); // stop motors after move
+    delay(50); // optional braking delay
+
+    // update position
+    if (facing_ == N) y_++;
+    else if (facing_ == E) x_++;
+    else if (facing_ == S) y_--;
+    else x_--;
+}
+
 
 void recomputeDistances(){
     const uint8_t INF = 255;
@@ -239,8 +408,27 @@ void waitForButton() {
 
 } // namespace Mouse
 
-int main() {
-    using namespace Mouse;
+void setup() {
+    using namespace Mouse;  
+    Wire.begin();
+    Serial.begin(115200);
+
+
+  
+    if (!myMPU.init()) {
+        Serial.println("MPU9250 not found");
+        while (1);
+    }
+
+    myMPU.setGyroRange(MPU9250_GYRO_RANGE_250);
+    myMPU.setAccRange(MPU9250_ACC_RANGE_2G);
+    myMPU.enableGyrDLPF();
+    myMPU.setGyrDLPF(MPU9250_DLPF_6);  // low-pass filter
+    myMPU.enableAccDLPF();
+    myMPU.setAccDLPF(MPU9250_DLPF_6);
+
+    delay(1000);
+    myMPU.autoOffsets();  // important for stability
 
     returnPath.clear(); //Clearing Caches
     forwardPath.clear();
