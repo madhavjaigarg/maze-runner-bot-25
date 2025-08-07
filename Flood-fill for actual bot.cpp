@@ -172,7 +172,7 @@ void turnLeft() {
     unsigned long lastTime = millis();
     const float targetYaw = -90.0; // degrees
     const int motorSpeed = 100;
-
+    
     // Start rotating left: left backward, right forward
     digitalWrite(LEFT_DIR_PIN1, LOW);
     digitalWrite(LEFT_DIR_PIN2, HIGH);
@@ -204,7 +204,7 @@ void turnRight() {
     unsigned long lastTime = millis();
     const float targetYaw = 90.0; // degrees
     const int motorSpeed = 100;
-
+    
     // Start rotating right: left forward, right backward
     digitalWrite(LEFT_DIR_PIN1, HIGH);
     digitalWrite(LEFT_DIR_PIN2, LOW);
@@ -408,7 +408,7 @@ void waitForButton() {
 
 } // namespace Mouse
 
-void setup() {
+void actualRun() {
     using namespace Mouse;  
     Wire.begin();
     Serial.begin(115200);
@@ -451,5 +451,5 @@ void setup() {
     waitForButton(); // Wait before 3rd run
     solve();         // Fast run 2
 
-    return 0;
+    return;
 }
