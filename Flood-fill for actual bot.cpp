@@ -445,6 +445,7 @@ void actualRun() {
     waitForButton(); // Wait before 2nd run
     solve();         // Fast run 1
 
+    runFast = true;
     x_ = y_ = 0;
     facing_ = N;
 
