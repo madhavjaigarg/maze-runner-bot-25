@@ -346,7 +346,7 @@ void returnToStart(){
     returnPath.clear();
     while(!atGoal()){
         int tx=x_, ty=y_; Heading th=facing_;
-        if(!chooseNextCell(tx,ty,th)){std::cerr<<"No path to start!"<<std::endl; break;}
+        if(!chooseNextCell(tx,ty,th)){Serial.println("No path!"); break;}
         face(th); stepForward();
         if (!runFast)
             returnPath.emplace_back(x_, y_, facing_);
@@ -392,7 +392,7 @@ void solve() {
         while (!atGoal()) {
             int tx = x_, ty = y_; Heading th = facing_;
             if (!chooseNextCell(tx, ty, th)) {
-                std::cerr << "No path!" << std::endl;
+                Serial.println("No path!");
                 break;
             }
             face(th);
