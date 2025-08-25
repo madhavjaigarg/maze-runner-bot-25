@@ -258,6 +258,12 @@ void stepForward() {
     }
 
     setMotorPWM(0, 0); // stop
+
+    if (facing_ == N) y_++;
+    else if (facing_ == E) x_++;
+    else if (facing_ == S) y_--;
+    else if (facing_ == W) x_--;
+
 }
 
 
