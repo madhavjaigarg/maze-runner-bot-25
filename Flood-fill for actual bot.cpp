@@ -10,6 +10,7 @@
 #include <MPU9250_WE.h>
 #include <Wire.h>
 #include <Arduino_APDS9960.h>
+#include <vector>
 
 ARDUINO_APDS9960 apds;
 bool initAPDS(uint8_t channel) {
@@ -468,10 +469,14 @@ void actualRun() {
 }
 
 void setup() {
-    pinMode(LEFT_PWM_PIN, OUTPUT);
-    pinMode(LEFT_DIR_PIN, OUTPUT);
-    pinMode(RIGHT_PWM_PIN, OUTPUT);
-    pinMode(RIGHT_DIR_PIN, OUTPUT);
+    pinMode(LEFT_PWM_PIN1, OUTPUT);
+    pinMode(LEFT_DIR_PIN1, OUTPUT);
+    pinMode(LEFT_PWM_PIN2, OUTPUT);
+    pinMode(LEFT_DIR_PIN2, OUTPUT);
+    pinMode(RIGHT_PWM_PIN1, OUTPUT);
+    pinMode(RIGHT_DIR_PIN1, OUTPUT);
+    pinMode(RIGHT_PWM_PIN2, OUTPUT);
+    pinMode(RIGHT_DIR_PIN2, OUTPUT);
 
     actualRun(); // start your robot logic
 }
