@@ -199,7 +199,6 @@ bool senseAllSidesAndCheckNew() {
     return changed;
 }
 
-//ADD THE SERVO MOTOR CODE
 void turnLeft() {
     updateYaw();
     float startYaw = yawAngle;
@@ -237,11 +236,6 @@ void face(Heading h){
     if(dt==1) turnRight();
     else if(dt==3) turnLeft();
     else if(dt==2){turnRight();turnRight();}
-}
-//ADD MOTOR CALIBRATION IF DOESN'T WORK
-void setMotorPWM(int leftPWM, int rightPWM) {
-    analogWrite(LEFT_MOTOR_PIN, constrain(leftPWM, 0, 255));
-    analogWrite(RIGHT_MOTOR_PIN, constrain(rightPWM, 0, 255));
 }
 
 //CALIBRATE SERVO MOTOR
