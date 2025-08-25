@@ -42,6 +42,30 @@ void selectMuxChannel(uint8_t channel) {
     Wire.endTransmission();
 }
 
+// ----------------- MOTOR DRIVER PINS -----------------SET THESE
+#define LEFT_PWM_PIN   
+#define LEFT_DIR_PIN   
+#define RIGHT_PWM_PIN  
+#define RIGHT_DIR_PIN  
+
+// Set individual motor
+void setMotor(int pwmPin, int dirPin, int speed) {
+    if (speed >= 0) {
+        digitalWrite(dirPin, HIGH);  // forward
+        analogWrite(pwmPin, constrain(speed, 0, 255));
+    } else {
+        digitalWrite(dirPin, LOW);   // reverse
+        analogWrite(pwmPin, constrain(-speed, 0, 255));
+    }
+}
+
+// Set both motors at once
+void setMotorPWM(int leftSpeed, int rightSpeed) {
+    setMotor(LEFT_PWM_PIN, LEFT_DIR_PIN, leftSpeed);
+    setMotor(RIGHT_PWM_PIN, RIGHT_DIR_PIN, rightSpeed);
+}
+
+
 namespace Mouse {
 
 enum Heading {N=0, E=1, S=2, W=3};
@@ -82,6 +106,23 @@ float integral = 0;
 //GYRO
 #define MPU_ADDR 0x68
 MPU9250_WE myMPU = MPU9250_WE(Wire, MPU_ADDR);
+float yawAngle = 0;        // global yaw (degrees)
+unsigned long lastYawTime; // timestamp for integration
+void updateYaw() {
+    unsigned long now = millis();
+    float dt = (now - lastYawTime) / 1000.0;
+    lastYawTime = now;
+
+    myMPU.update();
+    float gyroZ = myMPU.getGyrValues().z; // deg/s
+
+    yawAngle += gyroZ * dt;
+
+    // keep within -180 to +180
+    if (yawAngle > 180) yawAngle -= 360;
+    if (yawAngle < -180) yawAngle += 360;
+}
+
 
 bool senseRelative(Heading rel) {
     const int threshold = 100;
@@ -118,14 +159,6 @@ bool senseRelative(Heading rel) {
     return false;
 }
 
-
-float getWallError() {
-    float leftDistance = senseRelative(W);  // Replace with actual left sensor
-    float rightDistance = senseRelative(E); // Replace with actual right sensor
-
-    float error = leftDistance - rightDistance; // Target is centered
-    return error;
-}
 
 float computePID(float error) {
     integral += error;
@@ -168,66 +201,35 @@ bool senseAllSidesAndCheckNew() {
 
 //ADD THE SERVO MOTOR CODE
 void turnLeft() {
-    float yaw = 0;
-    unsigned long lastTime = millis();
-    const float targetYaw = -90.0; // degrees
-    const int motorSpeed = 100;
-    
-    // Start rotating left: left backward, right forward
-    digitalWrite(LEFT_DIR_PIN1, LOW);
-    digitalWrite(LEFT_DIR_PIN2, HIGH);
-    digitalWrite(RIGHT_DIR_PIN1, HIGH);
-    digitalWrite(RIGHT_DIR_PIN2, LOW);
+    updateYaw();
+    float startYaw = yawAngle;
+    float targetYaw = startYaw - 90;
+    if (targetYaw < -180) targetYaw += 360;
 
-    while (yaw > targetYaw) {
-        myMPU.update();
-        float gyroZ = myMPU.getGyrValues().z;
-
-        unsigned long currentTime = millis();
-        float dt = (currentTime - lastTime) / 1000.0;
-        lastTime = currentTime;
-
-        yaw += gyroZ * dt;
-
-        analogWrite(LEFT_PWM_PIN, motorSpeed);
-        analogWrite(RIGHT_PWM_PIN, motorSpeed);
+    while (abs(yawAngle - targetYaw) > 2) {
+        updateYaw();
+        setMotorPWM(-100, 100); // left back, right forward
     }
 
-    // Stop motors
-    analogWrite(LEFT_PWM_PIN, 0);
-    analogWrite(RIGHT_PWM_PIN, 0);
+    setMotorPWM(0, 0);
+    delay(100);
 }
 
 
+
 void turnRight() {
-    float yaw = 0;
-    unsigned long lastTime = millis();
-    const float targetYaw = 90.0; // degrees
-    const int motorSpeed = 100;
-    
-    // Start rotating right: left forward, right backward
-    digitalWrite(LEFT_DIR_PIN1, HIGH);
-    digitalWrite(LEFT_DIR_PIN2, LOW);
-    digitalWrite(RIGHT_DIR_PIN1, LOW);
-    digitalWrite(RIGHT_DIR_PIN2, HIGH);
+    updateYaw();
+    float startYaw = yawAngle;
+    float targetYaw = startYaw + 90;
+    if (targetYaw > 180) targetYaw -= 360;
 
-    while (yaw < targetYaw) {
-        myMPU.update();
-        float gyroZ = myMPU.getGyrValues().z; // deg/s
-
-        unsigned long currentTime = millis();
-        float dt = (currentTime - lastTime) / 1000.0;
-        lastTime = currentTime;
-
-        yaw += gyroZ * dt;
-
-        analogWrite(LEFT_PWM_PIN, motorSpeed);
-        analogWrite(RIGHT_PWM_PIN, motorSpeed);
+    while (abs(yawAngle - targetYaw) > 2) {
+        updateYaw();
+        setMotorPWM(100, -100); // left forward, right back
     }
 
-    // Stop motors
-    analogWrite(LEFT_PWM_PIN, 0);
-    analogWrite(RIGHT_PWM_PIN, 0);
+    setMotorPWM(0, 0);
+    delay(100);
 }
 
 void face(Heading h){
@@ -244,28 +246,24 @@ void setMotorPWM(int leftPWM, int rightPWM) {
 
 //CALIBRATE SERVO MOTOR
 void stepForward() {
-    const int baseSpeed = 120;
-    const int stepTime = 300; // ms to move one cell — tune this
+    updateYaw();
+    float targetYaw = yawAngle;  // lock heading at start
     unsigned long startTime = millis();
+    unsigned long travelTime = 1000; // ms per cell (tune!)
 
-    while (millis() - startTime < stepTime) {
-        float error = getWallError();
-        float correction = computePID(error);
+    while (millis() - startTime < travelTime) {
+        updateYaw();
+        float headingError = yawAngle - targetYaw;
+        float correction = computePID(headingError);
 
-        int leftPWM = baseSpeed - correction;
-        int rightPWM = baseSpeed + correction;
+        int baseSpeed = 120; // tune this
+        int leftSpeed = baseSpeed - correction;
+        int rightSpeed = baseSpeed + correction;
 
-        setMotorPWM(leftPWM, rightPWM);
+        setMotorPWM(leftSpeed, rightSpeed);
     }
 
-    setMotorPWM(0, 0); // stop motors after move
-    delay(50); // optional braking delay
-
-    // update position
-    if (facing_ == N) y_++;
-    else if (facing_ == E) x_++;
-    else if (facing_ == S) y_--;
-    else x_--;
+    setMotorPWM(0, 0); // stop
 }
 
 
@@ -453,4 +451,17 @@ void actualRun() {
     solve();         // Fast run 2
 
     return;
+}
+
+void setup() {
+    pinMode(LEFT_PWM_PIN, OUTPUT);
+    pinMode(LEFT_DIR_PIN, OUTPUT);
+    pinMode(RIGHT_PWM_PIN, OUTPUT);
+    pinMode(RIGHT_DIR_PIN, OUTPUT);
+
+    actualRun(); // start your robot logic
+}
+
+void loop(){
+
 }
