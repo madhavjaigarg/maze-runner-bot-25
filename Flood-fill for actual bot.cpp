@@ -43,27 +43,41 @@ void selectMuxChannel(uint8_t channel) {
 }
 
 // ----------------- MOTOR DRIVER PINS -----------------SET THESE
-#define LEFT_PWM_PIN   
-#define LEFT_DIR_PIN   
-#define RIGHT_PWM_PIN  
-#define RIGHT_DIR_PIN  
+// ----------------- MOTOR DRIVER PINS -----------------
+// Left side motors
+#define LEFT_PWM_PIN1   2
+#define LEFT_DIR_PIN1   3
+#define LEFT_PWM_PIN2   4
+#define LEFT_DIR_PIN2   5
+
+// Right side motors
+#define RIGHT_PWM_PIN1  6
+#define RIGHT_DIR_PIN1  7
+#define RIGHT_PWM_PIN2  8
+#define RIGHT_DIR_PIN2  9
 
 // Set individual motor
 void setMotor(int pwmPin, int dirPin, int speed) {
     if (speed >= 0) {
-        digitalWrite(dirPin, HIGH);  // forward
-        analogWrite(pwmPin, constrain(speed, 0, 255));
+        digitalWrite(dirPin, HIGH);  
+        analogWrite(pwmPin, constrain(speed, 0, 255));  // PWM speed
     } else {
-        digitalWrite(dirPin, LOW);   // reverse
+        digitalWrite(dirPin, LOW);   
         analogWrite(pwmPin, constrain(-speed, 0, 255));
     }
 }
 
-// Set both motors at once
+// Control all 4 motors
 void setMotorPWM(int leftSpeed, int rightSpeed) {
-    setMotor(LEFT_PWM_PIN, LEFT_DIR_PIN, leftSpeed);
-    setMotor(RIGHT_PWM_PIN, RIGHT_DIR_PIN, rightSpeed);
+    // Left side
+    setMotor(LEFT_PWM_PIN1, LEFT_DIR_PIN1, leftSpeed);
+    setMotor(LEFT_PWM_PIN2, LEFT_DIR_PIN2, leftSpeed);
+
+    // Right side
+    setMotor(RIGHT_PWM_PIN1, RIGHT_DIR_PIN1, rightSpeed);
+    setMotor(RIGHT_PWM_PIN2, RIGHT_DIR_PIN2, rightSpeed);
 }
+
 
 
 namespace Mouse {
