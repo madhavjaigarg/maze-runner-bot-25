@@ -262,7 +262,7 @@ void stepForward() {
     if (facing_ == N) y_++;
     else if (facing_ == E) x_++;
     else if (facing_ == S) y_--;
-    else if (facing_ == W) x_--;
+    else x_--;
 
 }
 
