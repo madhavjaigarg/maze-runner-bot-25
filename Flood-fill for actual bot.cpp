@@ -22,15 +22,15 @@ bool initAPDS(uint8_t channel) {
 void initAPDSSensors() {
     if (!initAPDS(0)) {
         Serial.println("Failed to init APDS on channel 0 (Front)");
-        while (1);
+        //while (1); change when final
     }
     if (!initAPDS(1)) {
         Serial.println("Failed to init APDS on channel 1 (Left)");
-        while (1);
+        //while (1); change when final
     }
     if (!initAPDS(2)) {
         Serial.println("Failed to init APDS on channel 2 (Right)");
-        while (1);
+        //while (1); change when final
     }
 }
 
