@@ -236,7 +236,7 @@ void face(Heading h){
     else if(dt==3) turnLeft();
     else if(dt==2){turnRight();turnRight();}
 }
-//ADD MOTOR CALIBRATION
+//ADD MOTOR CALIBRATION IF DOESN'T WORK
 void setMotorPWM(int leftPWM, int rightPWM) {
     analogWrite(LEFT_MOTOR_PIN, constrain(leftPWM, 0, 255));
     analogWrite(RIGHT_MOTOR_PIN, constrain(rightPWM, 0, 255));
