@@ -6,6 +6,7 @@
 #include <utility>
 #include <cstdint>
 #include <cmath>
+#include <MPU9250_WE.h>
 
 namespace Mouse {
 
@@ -34,6 +35,13 @@ Adafruit_APDS9960 sensorFrontLeft;
 Adafruit_APDS9960 sensorFrontRight;
 Adafruit_APDS9960 sensorLeft;
 Adafruit_APDS9960 sensorRight;
+
+// -------------------- MPU9250 --------------------
+#define MPU9250_ADDR 0x68
+MPU9250_WE myIMU = MPU9250_WE(MPU9250_ADDR);
+
+float currentGyroZAngle = 0.0f;
+unsigned long previousGyroReadTime = 0;
 
 // -------------------- Stacks --------------------
 #define MAX_STACK_SIZE 100
@@ -123,15 +131,33 @@ volatile long rightEncoderCount = 0;
 void isrLeftEncoder() { leftEncoderCount++; }
 void isrRightEncoder() { rightEncoderCount++; }
 
-// -------------------- Gyroscope Simulation --------------------
-float currentGyroZAngle = 0.0f;
-unsigned long previousGyroReadTime = 0;
+// -------------------- MPU9250 Functions --------------------
+void initMPU() {
+    if (!myIMU.init()) {
+        Serial.println("MPU9250 not found!");
+        while (1);
+    }
+    Serial.println("MPU9250 ready.");
+
+    myIMU.autoOffsets();
+    myIMU.enableGyr();
+    myIMU.setGyrDLPF(MPU9250_DLPF_41HZ);
+    myIMU.setSampleRateDivider(5);
+
+    previousGyroReadTime = millis();
+}
 
 void updateGyroAngle() {
     unsigned long currentTime = millis();
     float deltaTime = (currentTime - previousGyroReadTime) / 1000.0f;
     previousGyroReadTime = currentTime;
-    currentGyroZAngle += 45.0f * deltaTime;  // fake gyro drift
+
+    xyzFloat g = myIMU.getGyrValues();  // gyro in °/s
+    currentGyroZAngle += g.z * deltaTime;
+
+    // Keep yaw between -180 and 180
+    if (currentGyroZAngle > 180.0f) currentGyroZAngle -= 360.0f;
+    if (currentGyroZAngle < -180.0f) currentGyroZAngle += 360.0f;
 }
 
 // -------------------- Movement Functions --------------------
@@ -168,7 +194,7 @@ void turnDegrees(float targetDegrees) {
     unsigned long startMillis = millis();
     float target = initial + targetDegrees;
 
-    while (abs(target - currentGyroZAngle) > 2.0f && millis() - startMillis < 1500) {
+    while (abs(target - currentGyroZAngle) > 2.0f && millis() - startMillis < 3000) {
         updateGyroAngle();
         float error = target - currentGyroZAngle;
         float correction = turnPID.calculate(0, -error);
@@ -210,7 +236,7 @@ void doStuff() {
     distancePID.init(DISTANCE_PID_GAINS.Kp, DISTANCE_PID_GAINS.Ki, DISTANCE_PID_GAINS.Kd, DISTANCE_PID_LIMIT);
     turnPID.init(TURN_PID_GAINS.Kp, TURN_PID_GAINS.Ki, TURN_PID_GAINS.Kd, TURN_PID_LIMIT);
 
-    previousGyroReadTime = millis();
+    initMPU();  // start MPU9250
 
     if (!sensorFrontLeft.begin()) Serial.println("Front Left APDS not found");
     if (!sensorFrontRight.begin()) Serial.println("Front Right APDS not found");
