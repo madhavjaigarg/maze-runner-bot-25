@@ -28,7 +28,7 @@ struct APDSMuxed {
 
     bool begin() {
         selectMuxChannel(channel);
-        delay(10);
+        delay(5);
         return APDS.begin();
     }
 
@@ -46,14 +46,31 @@ struct APDSMuxed {
 };
 
 // Create instances for each APDS
-APDSMuxed frontSensor(0);
+APDSMuxed frontSensorL(0);  // Left-front
+APDSMuxed frontSensorR(3);  // Right-front (new)
 APDSMuxed leftSensor(1);
 APDSMuxed rightSensor(2);
 
 void initAPDSSensors() {
-    if (!frontSensor.begin()) Serial.println("Failed to init APDS on channel 0 (Front)");
-    if (!leftSensor.begin())  Serial.println("Failed to init APDS on channel 1 (Left)");
-    if (!rightSensor.begin()) Serial.println("Failed to init APDS on channel 2 (Right)");
+    if (!frontSensorL.begin()) Serial.println("Failed to init APDS on channel 0 (Front-Left)");
+    if (!frontSensorR.begin()) Serial.println("Failed to init APDS on channel 3 (Front-Right)");
+    if (!leftSensor.begin())   Serial.println("Failed to init APDS on channel 1 (Left)");
+    if (!rightSensor.begin())  Serial.println("Failed to init APDS on channel 2 (Right)");
+}
+
+// Helper: average of two front sensors
+int readFrontAverage() {
+    int v1 = 0, v2 = 0, count = 0;
+    if (frontSensorL.proximityAvailable()) {
+        v1 = frontSensorL.readProximity();
+        count++;
+    }
+    if (frontSensorR.proximityAvailable()) {
+        v2 = frontSensorR.readProximity();
+        count++;
+    }
+    if (count == 0) return 0;
+    return (v1 + v2) / count;
 }
 
 // ----------------- MOTOR DRIVER PINS -----------------
@@ -138,14 +155,13 @@ void updateYaw() {
 }
 
 bool senseRelative(Heading rel) {
-    const int threshold = 100;
+    const int threshold = 100; //CHANGE THRESHOLD
 
     switch (rel) {
-        case N: // Front sensor
-            if (frontSensor.proximityAvailable()) {
-                return frontSensor.readProximity() > threshold;
-            }
-            break;
+        case N: { // Front sensors (average)
+            int avg = readFrontAverage();
+            return avg > threshold;
+        }
 
         case W: // Left sensor
             if (leftSensor.proximityAvailable()) {
