@@ -1,11 +1,5 @@
-#include <cstdlib>
 #include <utility>
-#include <iostream>
 #include <queue>
-#include <array>
-#include <algorithm>
-#include <cassert>
-#include <string>
 #include <stdint.h>
 #include <Wire.h>
 #include <Arduino_APDS9960.h>
