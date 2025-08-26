@@ -432,15 +432,19 @@ void actualRun() {
     facing_ = N;
     runFast = false;
 
+    yawAngle = 0;
+    myMPU.autoOffsets(); // does accel + gyro bias correction
     waitForButton();
     solve();
     
     yawAngle = 0;
+    myMPU.autoOffsets(); // does accel + gyro bias correction
     runFast = true; x_ = y_ = 0; facing_ = N;
     waitForButton();
     solve();
 
     yawAngle = 0;
+    myMPU.autoOffsets(); // does accel + gyro bias correction
     runFast = true; x_ = y_ = 0; facing_ = N;
     waitForButton();
     solve();
@@ -472,6 +476,7 @@ void setup() {
 
     Mouse::lastYawTime = millis();
     Mouse::yawAngle = 0;
+    myMPU.autoOffsets(); // does accel + gyro bias correction
 
     initAPDSSensors();
     actualRun();
