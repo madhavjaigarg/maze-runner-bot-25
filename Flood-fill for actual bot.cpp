@@ -265,6 +265,7 @@ void face(Heading h){
 }
 
 //CALIBRATE SERVO MOTOR
+// Step forward with gyro + wall-centering
 void stepForward() {
     updateYaw();
     float targetYaw = yawAngle;  // lock heading at start
@@ -276,22 +277,50 @@ void stepForward() {
         float headingError = yawAngle - targetYaw;
         float correction = computePID(headingError);
 
+        // --- NEW: Wall centering ---
+        const int threshold = 100; // same as senseRelative
+        int leftVal = leftSensor.proximityAvailable() ? leftSensor.readProximity() : 0;
+        int rightVal = rightSensor.proximityAvailable() ? rightSensor.readProximity() : 0;
+
+        float wallError = 0;
+        bool leftWall = (leftVal > threshold);
+        bool rightWall = (rightVal > threshold);
+
+        if (leftWall && rightWall) {
+            // Use difference to stay centered
+            wallError = (leftVal - rightVal) * 0.5f; 
+        } else if (leftWall) {
+            // Only left wall detected → try to keep a safe distance
+            int targetDist = 150; // tune: desired sensor value
+            wallError = (leftVal - targetDist) * 0.5f;
+        } else if (rightWall) {
+            // Only right wall detected
+            int targetDist = 150; // tune: desired sensor value
+            wallError = (targetDist - rightVal) * 0.5f;
+        } else {
+            // No walls → disable wall correction
+            wallError = 0;
+        }
+
+        // Combine gyro correction + wall correction
+        float totalCorrection = correction + wallError;
+
+        // Motor speeds
         int baseSpeed = 120; // tune this
-        int leftSpeed = baseSpeed - correction;
-        int rightSpeed = baseSpeed + correction;
+        int leftSpeed = baseSpeed - totalCorrection;
+        int rightSpeed = baseSpeed + totalCorrection;
 
         setMotorPWM(leftSpeed, rightSpeed);
     }
 
     setMotorPWM(0, 0); // stop
 
+    // Update grid position
     if (facing_ == N) y_++;
     else if (facing_ == E) x_++;
     else if (facing_ == S) y_--;
     else x_--;
-
 }
-
 
 void recomputeDistances(){
     const uint8_t INF = 255;
