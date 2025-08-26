@@ -7,35 +7,15 @@
 #include <cassert>
 #include <string>
 #include <stdint.h>
-#include <MPU9250_WE.h>
 #include <Wire.h>
 #include <Arduino_APDS9960.h>
 #include <vector>
+#include <MPU9250_WE.h> 
 
-ARDUINO_APDS9960 apds;
-bool initAPDS(uint8_t channel) {
-    selectMuxChannel(channel);
-    delay(10); // ensure the channel is set
-    return apds.begin();
-}
+#define BUTTON 10
 
-void initAPDSSensors() {
-    if (!initAPDS(0)) {
-        Serial.println("Failed to init APDS on channel 0 (Front)");
-        //while (1); change when final
-    }
-    if (!initAPDS(1)) {
-        Serial.println("Failed to init APDS on channel 1 (Left)");
-        //while (1); change when final
-    }
-    if (!initAPDS(2)) {
-        Serial.println("Failed to init APDS on channel 2 (Right)");
-        //while (1); change when final
-    }
-}
-
+// ----------------- I2C MUX -----------------
 #define MUX_ADDR 0x70 // default I2C address for PCS9548A
-
 void selectMuxChannel(uint8_t channel) {
     if (channel > 7) return;
     Wire.beginTransmission(MUX_ADDR);
@@ -43,48 +23,78 @@ void selectMuxChannel(uint8_t channel) {
     Wire.endTransmission();
 }
 
-// ----------------- MOTOR DRIVER PINS -----------------SET THESE
+// ----------------- MPU9250 -----------------
+#define MPU_ADDR 0x68
+MPU9250_WE myMPU(MPU_ADDR);
+
+// ----------------- APDS WRAPPER -----------------
+struct APDSMuxed {
+    uint8_t channel;
+    APDSMuxed(uint8_t ch) : channel(ch) {}
+
+    bool begin() {
+        selectMuxChannel(channel);
+        delay(10);
+        return APDS.begin();
+    }
+
+    bool proximityAvailable() {
+        selectMuxChannel(channel);
+        delay(5);
+        return APDS.proximityAvailable();
+    }
+
+    int readProximity() {
+        selectMuxChannel(channel);
+        delay(5);
+        return APDS.readProximity();
+    }
+};
+
+// Create instances for each APDS
+APDSMuxed frontSensor(0);
+APDSMuxed leftSensor(1);
+APDSMuxed rightSensor(2);
+
+void initAPDSSensors() {
+    if (!frontSensor.begin()) Serial.println("Failed to init APDS on channel 0 (Front)");
+    if (!leftSensor.begin())  Serial.println("Failed to init APDS on channel 1 (Left)");
+    if (!rightSensor.begin()) Serial.println("Failed to init APDS on channel 2 (Right)");
+}
+
 // ----------------- MOTOR DRIVER PINS -----------------
-// Left side motors
 #define LEFT_PWM_PIN1   2
 #define LEFT_DIR_PIN1   3
 #define LEFT_PWM_PIN2   4
 #define LEFT_DIR_PIN2   5
-
-// Right side motors
 #define RIGHT_PWM_PIN1  6
 #define RIGHT_DIR_PIN1  7
 #define RIGHT_PWM_PIN2  8
 #define RIGHT_DIR_PIN2  9
 
-// Set individual motor
 void setMotor(int pwmPin, int dirPin, int speed) {
     if (speed >= 0) {
         digitalWrite(dirPin, HIGH);  
-        analogWrite(pwmPin, constrain(speed, 0, 255));  // PWM speed
+        analogWrite(pwmPin, constrain(speed, 0, 255));
     } else {
         digitalWrite(dirPin, LOW);   
         analogWrite(pwmPin, constrain(-speed, 0, 255));
     }
 }
 
-// Control all 4 motors
 void setMotorPWM(int leftSpeed, int rightSpeed) {
-    // Left side
     setMotor(LEFT_PWM_PIN1, LEFT_DIR_PIN1, leftSpeed);
     setMotor(LEFT_PWM_PIN2, LEFT_DIR_PIN2, leftSpeed);
-
-    // Right side
     setMotor(RIGHT_PWM_PIN1, RIGHT_DIR_PIN1, rightSpeed);
     setMotor(RIGHT_PWM_PIN2, RIGHT_DIR_PIN2, rightSpeed);
 }
-
 
 
 namespace Mouse {
 
 enum Heading {N=0, E=1, S=2, W=3};
 
+// --- maze constants (unchanged) ---
 static const unsigned WALL_N = 1u<<0;
 static const unsigned WALL_E = 1u<<1;
 static const unsigned WALL_S = 1u<<2;
@@ -105,65 +115,53 @@ static Cell maze[16][16];
 static uint8_t dist[16][16];
 static int x_=0,y_=0;
 static Heading facing_=N;
-static std::vector<std::pair<int,int> > goals;
+static std::vector<std::pair<int,int>> goals;
 static std::vector<std::tuple<int,int,Heading>> forwardPath;
 static std::vector<std::tuple<int,int,Heading>> returnPath;
 static bool runFast = false;
 
-//PID
-float kp = 1.2;
-float ki = 0.0;
-float kd = 0.05;
+// PID
+float kp = 1.2, ki = 0.0, kd = 0.05;
+float previousError = 0, integral = 0;
 
-float previousError = 0;
-float integral = 0;
+// GYRO  
+float yawAngle = 0;
+unsigned long lastYawTime;
 
-//GYRO
-#define MPU_ADDR 0x68
-MPU9250_WE myMPU = MPU9250_WE(Wire, MPU_ADDR);
-float yawAngle = 0;        // global yaw (degrees)
-unsigned long lastYawTime; // timestamp for integration
 void updateYaw() {
     unsigned long now = millis();
-    float dt = (now - lastYawTime) / 1000.0;
+    float dt = (now - lastYawTime) / 1000.0f;
     lastYawTime = now;
 
-    myMPU.update();
-    float gyroZ = myMPU.getGyrValues().z; // deg/s
+    xyzFloat g = myMPU.getGyrValues();
+    float gyroZ = g.z;  // deg/s
 
     yawAngle += gyroZ * dt;
 
-    // keep within -180 to +180
-    if (yawAngle > 180) yawAngle -= 360;
-    if (yawAngle < -180) yawAngle += 360;
+    // Keep in [-180, 180]
+    if (yawAngle > 180.0f) yawAngle -= 360.0f;
+    if (yawAngle < -180.0f) yawAngle += 360.0f;
 }
-
 
 bool senseRelative(Heading rel) {
     const int threshold = 100;
 
     switch (rel) {
-        case N: // Front sensor on channel 0
-            selectMuxChannel(0);
-            delay(2); // minimal delay
-            if (apds.proximityAvailable()) {
-                return apds.readProximity() > threshold;
+        case N: // Front sensor
+            if (frontSensor.proximityAvailable()) {
+                return frontSensor.readProximity() > threshold;
             }
             break;
 
-        case W: // Left sensor on channel 1
-            selectMuxChannel(1);
-            delay(2);
-            if (apds.proximityAvailable()) {
-                return apds.readProximity() > threshold;
+        case W: // Left sensor
+            if (leftSensor.proximityAvailable()) {
+                return leftSensor.readProximity() > threshold;
             }
             break;
 
-        case E: // Right sensor on channel 2
-            selectMuxChannel(2);
-            delay(2);
-            if (apds.proximityAvailable()) {
-                return apds.readProximity() > threshold;
+        case E: // Right sensor
+            if (rightSensor.proximityAvailable()) {
+                return rightSensor.readProximity() > threshold;
             }
             break;
 
@@ -177,6 +175,9 @@ bool senseRelative(Heading rel) {
 
 float computePID(float error) {
     integral += error;
+    // prevent windup
+    integral = constrain(integral, -100.0f, 100.0f);
+
     float derivative = error - previousError;
     previousError = error;
 
@@ -412,60 +413,37 @@ void solve() {
     }
 }
 
-//ADD THE CODE FOR THE BUTTON
 void waitForButton() {
-    while (!API::buttonPressed()) {
-        // wait for manual trigger
-    }
+    while (digitalRead(BUTTON) == HIGH) { }
+    delay(10);
 }
 
 } // namespace Mouse
 
+
 void actualRun() {
-    using namespace Mouse;  
-    Wire.begin();
-    Serial.begin(115200);
-
-
-  
-    if (!myMPU.init()) {
-        Serial.println("MPU9250 not found");
-        while (1);
-    }
-
-    myMPU.setGyroRange(MPU9250_GYRO_RANGE_250);
-    myMPU.setAccRange(MPU9250_ACC_RANGE_2G);
-    myMPU.enableGyrDLPF();
-    myMPU.setGyrDLPF(MPU9250_DLPF_6);  // low-pass filter
-    myMPU.enableAccDLPF();
-    myMPU.setAccDLPF(MPU9250_DLPF_6);
+    using namespace Mouse;
 
     delay(1000);
-    myMPU.autoOffsets();  // important for stability
 
-    returnPath.clear(); //Clearing Caches
+    returnPath.clear();
     forwardPath.clear();
-    x_ = y_ = 0; //Setting the directions
+    x_ = y_ = 0;
     facing_ = N;
     runFast = false;
-    waitForButton(); // Wait before 1st run
-    solve();         // First mapping run
 
-    runFast = true;
-    x_ = y_ = 0;
-    facing_ = N;
+    waitForButton();
+    solve();
+    
+    yawAngle = 0;
+    runFast = true; x_ = y_ = 0; facing_ = N;
+    waitForButton();
+    solve();
 
-    waitForButton(); // Wait before 2nd run
-    solve();         // Fast run 1
-
-    runFast = true;
-    x_ = y_ = 0;
-    facing_ = N;
-
-    waitForButton(); // Wait before 3rd run
-    solve();         // Fast run 2
-
-    return;
+    yawAngle = 0;
+    runFast = true; x_ = y_ = 0; facing_ = N;
+    waitForButton();
+    solve();
 }
 
 void setup() {
@@ -477,10 +455,34 @@ void setup() {
     pinMode(RIGHT_DIR_PIN1, OUTPUT);
     pinMode(RIGHT_PWM_PIN2, OUTPUT);
     pinMode(RIGHT_DIR_PIN2, OUTPUT);
+    pinMode(BUTTON, INPUT_PULLUP);
+    Wire.begin();
+    Serial.begin(115200);
 
-    actualRun(); // start your robot logic
+    if (!myMPU.init()) {  
+        Serial.println("MPU9250 init failed!");
+        while (1);
+    }
+
+    myMPU.setGyrRange(MPU9250_GYRO_RANGE_250);
+    myMPU.setAccRange(MPU9250_ACC_RANGE_2G);
+    myMPU.setGyrDLPF(MPU9250_DLPF_4);   // Gyro filter at 20 Hz
+    myMPU.setAccDLPF(MPU9250_DLPF_4);   // Accel filter at ~21 Hz
+    myMPU.setSampleRateDivider(19);
+
+    Mouse::lastYawTime = millis();
+    Mouse::yawAngle = 0;
+
+    initAPDSSensors();
+    actualRun();
 }
 
 void loop(){
+    xyzFloat gyr = myMPU.getGyrValues();
+    xyzFloat acc = myMPU.getAccRawValues();
 
+    Serial.print("Gyro Z: ");
+    Serial.println(gyr.z);
+
+    delay(100);
 }
