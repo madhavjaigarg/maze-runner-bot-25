@@ -5,6 +5,7 @@
 #include <Arduino_APDS9960.h>
 #include <vector>
 #include <MPU9250_WE.h> 
+#include <math.h>
 
 #define BUTTON 10
 
@@ -231,7 +232,7 @@ void turnLeft() {
     float targetYaw = startYaw - 90;
     if (targetYaw < -180) targetYaw += 360;
 
-    while (abs(yawAngle - targetYaw) > 2) {
+    while (fabs(yawAngle - targetYaw) > 2) {
         updateYaw();
         setMotorPWM(-100, 100); // left back, right forward
     }
@@ -248,7 +249,7 @@ void turnRight() {
     float targetYaw = startYaw + 90;
     if (targetYaw > 180) targetYaw -= 360;
 
-    while (abs(yawAngle - targetYaw) > 2) {
+    while (fabs(yawAngle - targetYaw) > 2) {
         updateYaw();
         setMotorPWM(100, -100); // left forward, right back
     }
