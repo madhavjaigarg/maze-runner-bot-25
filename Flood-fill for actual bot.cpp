@@ -415,7 +415,7 @@ void solve() {
 
         // Go to center (goal) using shorter path
         for (const auto &[tx, ty, th] : shorterPath) {
-            face(th);
+            face(opp(th));
             stepForward();
         }
 
@@ -525,9 +525,6 @@ void setup() {
 void loop(){
     xyzFloat gyr = myMPU.getGyrValues();
     xyzFloat acc = myMPU.getAccRawValues();
-
-    Serial.print("Gyro Z: ");
-    Serial.println(gyr.z);
-
+    
     delay(100);
 }
