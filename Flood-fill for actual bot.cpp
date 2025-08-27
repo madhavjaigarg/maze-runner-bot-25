@@ -87,7 +87,7 @@ void setMotorPWM (int left, int right){
     left = constrain(-255, 255);
     right = constrain(-255, 255);    
     
-    if (leftSpeed >= 0){
+    if (left >= 0){
         analogWrite(leftForward, left);
         analogWrite(leftBack, 0); 
     } else {
@@ -95,7 +95,7 @@ void setMotorPWM (int left, int right){
         analogWrite(leftForward, 0);
     }
 
-    if (rightSpeed >= 0){
+    if (right >= 0){
         analogWrite(rightForward, right); 
         analogWrite(rightBack, 0);         
     } else {
