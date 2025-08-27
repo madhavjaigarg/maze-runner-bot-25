@@ -82,7 +82,7 @@ int readFrontAverage() {
 #define rightForward 4
 #define rightBack 5
 
-void setMotorPwm (int left, int right){
+void setMotorPWM (int left, int right){
 
     left = constrain(-255, 255);
     right = constrain(-255, 255);    
