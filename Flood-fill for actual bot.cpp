@@ -7,7 +7,8 @@
 #include <MPU9250_WE.h> 
 #include <math.h>
 
-#define BUTTON 10
+#define touchSensor1 11
+#define touchSensor2 12
 
 // ----------------- I2C MUX -----------------
 #define MUX_ADDR 0x70 // default I2C address for PCS9548A
@@ -454,7 +455,7 @@ void solve() {
 }
 
 void waitForButton() {
-    while (digitalRead(BUTTON) == HIGH) { }
+    while (digitalRead(touchSensor1) == HIGH || digitalRead(touchSensor2) == HIGH) { }
     delay(10);
 }
 
@@ -499,7 +500,8 @@ void setup() {
     pinMode(RIGHT_DIR_PIN1, OUTPUT);
     pinMode(RIGHT_PWM_PIN2, OUTPUT);
     pinMode(RIGHT_DIR_PIN2, OUTPUT);
-    pinMode(BUTTON, INPUT_PULLUP);
+    pinMode(touchSensor1, INPUT);
+    pinMode(touchSensor2, INPUT);
     Wire.begin();
     Serial.begin(115200);
 
