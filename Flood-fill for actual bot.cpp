@@ -91,7 +91,7 @@ void setMotorPWM (int left, int right){
         analogWrite(leftForward, left);
         analogWrite(leftBack, 0); 
     } else {
-        analogWrite(leftBack, left);
+        analogWrite(leftBack, abs(left));
         analogWrite(leftForward, 0);
     }
 
@@ -99,7 +99,7 @@ void setMotorPWM (int left, int right){
         analogWrite(rightForward, right); 
         analogWrite(rightBack, 0);         
     } else {
-        analogWrite(rightBack, right);
+        analogWrite(rightBack, abs(right));
         analogWrite(rightForward, 0);
     }
     
