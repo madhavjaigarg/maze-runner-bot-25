@@ -84,8 +84,8 @@ int readFrontAverage() {
 
 void setMotorPWM (int left, int right){
 
-    left = constrain(-255, 255);
-    right = constrain(-255, 255);    
+    left = constrain(left, -255, 255);
+    right = constrain(right, -255, 255);    
     
     if (left >= 0){
         analogWrite(leftForward, left);
