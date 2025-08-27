@@ -233,6 +233,7 @@ void turnLeft() {
     updateYaw();
     float startYaw = yawAngle;
     float targetYaw = startYaw - 90;
+    unsigned long startTime = millis();    
     if (targetYaw < -180) targetYaw += 360;
 
     while (fabs(yawAngle - targetYaw) > 2) {
@@ -252,6 +253,7 @@ void turnRight() {
     updateYaw();
     float startYaw = yawAngle;
     float targetYaw = startYaw + 90;
+    unsigned long startTime = millis();
     if (targetYaw > 180) targetYaw -= 360;
 
     while (fabs(yawAngle - targetYaw) > 2) {
