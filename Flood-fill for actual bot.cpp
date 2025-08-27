@@ -238,8 +238,10 @@ void turnLeft() {
     while (fabs(yawAngle - targetYaw) > 2) {
         updateYaw();
         setMotorPWM(-100, 100); // left back, right forward
-    }
 
+        if (millis() - startTime > 2000) break;  // NEW timeout (2s safety)
+    }
+    
     setMotorPWM(0, 0);
     delay(100);
 }
@@ -255,6 +257,8 @@ void turnRight() {
     while (fabs(yawAngle - targetYaw) > 2) {
         updateYaw();
         setMotorPWM(100, -100); // left forward, right back
+
+        if (millis() - startTime > 2000) break;  // NEW timeout (2s safety)        
     }
 
     setMotorPWM(0, 0);
@@ -319,6 +323,10 @@ void stepForward() {
         int rightSpeed = baseSpeed + totalCorrection;
 
         setMotorPWM(leftSpeed, rightSpeed);
+
+        if (digitalRead(touchSensor1) == HIGH || digitalRead(touchSensor2) == HIGH) {
+            stepBack();
+        }
     }
 
     setMotorPWM(0, 0); // stop
@@ -530,7 +538,7 @@ void setup() {
 void loop(){
     
     if (digitalRead(touchSensor1) == HIGH || digitalRead(touchSensor2) == HIGH ) {
-        stepBack();
+        Mouse::stepBack();
     }    
 
     actualRun();
