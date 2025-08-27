@@ -500,14 +500,10 @@ void actualRun() {
 }
 
 void setup() {
-    pinMode(LEFT_PWM_PIN1, OUTPUT);
-    pinMode(LEFT_DIR_PIN1, OUTPUT);
-    pinMode(LEFT_PWM_PIN2, OUTPUT);
-    pinMode(LEFT_DIR_PIN2, OUTPUT);
-    pinMode(RIGHT_PWM_PIN1, OUTPUT);
-    pinMode(RIGHT_DIR_PIN1, OUTPUT);
-    pinMode(RIGHT_PWM_PIN2, OUTPUT);
-    pinMode(RIGHT_DIR_PIN2, OUTPUT);
+    pinMode(leftForward, OUTPUT);
+    pinMode(leftBack, OUTPUT);
+    pinMode(rightForward, OUTPUT);
+    pinMode(rightBack, OUTPUT);
     pinMode(touchSensor1, INPUT);
     pinMode(touchSensor2, INPUT);
     Wire.begin();
