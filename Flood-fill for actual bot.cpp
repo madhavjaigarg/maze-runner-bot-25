@@ -11,7 +11,8 @@
 #define touchSensor2 12
 
 // ----------------- I2C MUX -----------------
-#define MUX_ADDR 0x70 // default I2C address for PCS9548A
+#define MUX_ADDR 0x70 
+// default I2C address for PCS9548A
 void selectMuxChannel(uint8_t channel) {
     if (channel > 7) return;
     Wire.beginTransmission(MUX_ADDR);
@@ -76,32 +77,33 @@ int readFrontAverage() {
 }
 
 // ----------------- MOTOR DRIVER PINS -----------------
-#define LEFT_PWM_PIN1   2
-#define LEFT_DIR_PIN1   3
-#define LEFT_PWM_PIN2   4
-#define LEFT_DIR_PIN2   5
-#define RIGHT_PWM_PIN1  6
-#define RIGHT_DIR_PIN1  7
-#define RIGHT_PWM_PIN2  8
-#define RIGHT_DIR_PIN2  9
+#define leftForward 2
+#define leftBack 3
+#define rightForward 4
+#define rightBack 5
 
-void setMotor(int pwmPin, int dirPin, int speed) {
-    if (speed >= 0) {
-        digitalWrite(dirPin, HIGH);  
-        analogWrite(pwmPin, constrain(speed, 0, 255));
+void setMotorPwm (int left, int right){
+
+    left = constrain(-255, 255);
+    right = constrain(-255, 255);    
+    
+    if (leftSpeed >= 0){
+        analogWrite(leftForward, left);
+        analogWrite(leftBack, 0); 
     } else {
-        digitalWrite(dirPin, LOW);   
-        analogWrite(pwmPin, constrain(-speed, 0, 255));
+        analogWrite(leftBack, left);
+        analogWrite(leftForward, 0);
     }
-}
 
-void setMotorPWM(int leftSpeed, int rightSpeed) {
-    setMotor(LEFT_PWM_PIN1, LEFT_DIR_PIN1, leftSpeed);
-    setMotor(LEFT_PWM_PIN2, LEFT_DIR_PIN2, leftSpeed);
-    setMotor(RIGHT_PWM_PIN1, RIGHT_DIR_PIN1, rightSpeed);
-    setMotor(RIGHT_PWM_PIN2, RIGHT_DIR_PIN2, rightSpeed);
+    if (rightSpeed >= 0){
+        analogWrite(rightForward, right); 
+        analogWrite(rightBack, 0);         
+    } else {
+        analogWrite(rightBack, right);
+        analogWrite(rightForward, 0);
+    }
+    
 }
-
 
 namespace Mouse {
 
@@ -259,6 +261,11 @@ void turnRight() {
     delay(100);
 }
 
+void stepBack() {
+    setMotorPWM(-100,-100);
+    delay(500);
+    setMotorPWM(0,0);
+}
 void face(Heading h){
     int dt=((int)h-(int)facing_)&3;
     if(dt==1) turnRight();
@@ -304,7 +311,6 @@ void stepForward() {
             wallError = 0;
         }
 
-        // Combine gyro correction + wall correction
         float totalCorrection = correction + wallError;
 
         // Motor speeds
@@ -317,6 +323,8 @@ void stepForward() {
 
     setMotorPWM(0, 0); // stop
 
+    delay(10);
+    
     // Update grid position
     if (facing_ == N) y_++;
     else if (facing_ == E) x_++;
@@ -527,6 +535,9 @@ void setup() {
 void loop(){
     xyzFloat gyr = myMPU.getGyrValues();
     xyzFloat acc = myMPU.getAccRawValues();
-    
+
+    if (digitalRead(touchSensor1) == HIGH || digitalRead(touchSensor2) == HIGH ) {
+        stepBack();
+    }    
     delay(100);
 }
