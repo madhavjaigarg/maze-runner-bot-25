@@ -529,15 +529,13 @@ void setup() {
     myMPU.autoOffsets(); // does accel + gyro bias correction
 
     initAPDSSensors();
-    actualRun();
 }
 
 void loop(){
-    xyzFloat gyr = myMPU.getGyrValues();
-    xyzFloat acc = myMPU.getAccRawValues();
-
+    
     if (digitalRead(touchSensor1) == HIGH || digitalRead(touchSensor2) == HIGH ) {
         stepBack();
     }    
-    delay(100);
+
+    actualRun();
 }
