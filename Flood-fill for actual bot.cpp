@@ -119,21 +119,16 @@ bool senseRelative(Heading rel) {
     const int threshold = 100; //CHANGE THRESHOLD
 
     switch (rel) {
-        case N: { // Front sensors (average)
-            int avg = readFrontAverage();
-            return avg > threshold;
+        case N: { // Front sensors
+            return readProximity(usft, usfe) > threshold;
         }
 
         case W: // Left sensor
-            if (leftSensor.proximityAvailable()) {
-                return leftSensor.readProximity() > threshold;
-            }
+            return readProximity(uslt, usle) > threshold;
             break;
 
         case E: // Right sensor
-            if (rightSensor.proximityAvailable()) {
-                return rightSensor.readProximity() > threshold;
-            }
+            return readProximity(usrt, usre) > threshold;
             break;
 
         case S:
@@ -497,8 +492,6 @@ void setup() {
     Mouse::lastYawTime = millis();
     Mouse::yawAngle = 0;
     myMPU.autoOffsets(); // does accel + gyro bias correction
-
-    initAPDSSensors();
 }
 
 void loop(){
