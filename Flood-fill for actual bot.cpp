@@ -2,7 +2,6 @@
 #include <queue>
 #include <stdint.h>
 #include <Wire.h>
-#include <Arduino_APDS9960.h>
 #include <vector>
 #include <MPU9250_WE.h> 
 #include <math.h>
@@ -10,71 +9,9 @@
 #define touchSensor1 11
 #define touchSensor2 12
 
-// ----------------- I2C MUX -----------------
-#define MUX_ADDR 0x70 
-// default I2C address for PCS9548A
-void selectMuxChannel(uint8_t channel) {
-    if (channel > 7) return;
-    Wire.beginTransmission(MUX_ADDR);
-    Wire.write(1 << channel);
-    Wire.endTransmission();
-}
-
 // ----------------- MPU9250 -----------------
 #define MPU_ADDR 0x68
 MPU9250_WE myMPU(MPU_ADDR);
-
-// ----------------- APDS WRAPPER -----------------
-struct APDSMuxed {
-    uint8_t channel;
-    APDSMuxed(uint8_t ch) : channel(ch) {}
-
-    bool begin() {
-        selectMuxChannel(channel);
-        delay(5);
-        return APDS.begin();
-    }
-
-    bool proximityAvailable() {
-        selectMuxChannel(channel);
-        delay(5);
-        return APDS.proximityAvailable();
-    }
-
-    int readProximity() {
-        selectMuxChannel(channel);
-        delay(5);
-        return APDS.readProximity();
-    }
-};
-
-// Create instances for each APDS
-APDSMuxed frontSensorL(0);  // Left-front
-APDSMuxed frontSensorR(3);  // Right-front (new)
-APDSMuxed leftSensor(1);
-APDSMuxed rightSensor(2);
-
-void initAPDSSensors() {
-    if (!frontSensorL.begin()) Serial.println("Failed to init APDS on channel 0 (Front-Left)");
-    if (!frontSensorR.begin()) Serial.println("Failed to init APDS on channel 3 (Front-Right)");
-    if (!leftSensor.begin())   Serial.println("Failed to init APDS on channel 1 (Left)");
-    if (!rightSensor.begin())  Serial.println("Failed to init APDS on channel 2 (Right)");
-}
-
-// Helper: average of two front sensors
-int readFrontAverage() {
-    int v1 = 0, v2 = 0, count = 0;
-    if (frontSensorL.proximityAvailable()) {
-        v1 = frontSensorL.readProximity();
-        count++;
-    }
-    if (frontSensorR.proximityAvailable()) {
-        v2 = frontSensorR.readProximity();
-        count++;
-    }
-    if (count == 0) return 0;
-    return (v1 + v2) / count;
-}
 
 // ----------------- MOTOR DRIVER PINS -----------------
 #define leftForward 2
@@ -105,6 +42,26 @@ void setMotorPWM (int left, int right){
     
 }
 
+//--------------ULTRASONIC SENSOR-----------
+#define uslt 6
+#define usle 9
+#define usrt 7
+#define usre 10
+#define usft 8
+#define usfe 13
+
+long readProximity(int trigPin, int echoPin){
+    digitalWrite(trigPin, LOW);
+    delayMicroseconds(2);
+    digitalWrite(trigPin, HIGH);
+    delayMicroseconds(5);
+    digitalWrite(trigPin, LOW);
+
+    long duration = pulsIn(echoPin, HIGH, 20000);
+    long distance = duration * 0.034 / 2;
+      return distance;
+    
+}
 namespace Mouse {
 
 enum Heading {N=0, E=1, S=2, W=3};
@@ -510,6 +467,13 @@ void actualRun() {
 }
 
 void setup() {
+
+    pinMode (uslt, OUTPUT);
+    pinMode (usle, IONPUT);
+    pinMode (usrt, OUTPUT);
+    pinMode (usre, INPUT);
+    pinMode (usft, OUTPUT);
+    pinMode (usre, INPUT);
     pinMode(leftForward, OUTPUT);
     pinMode(leftBack, OUTPUT);
     pinMode(rightForward, OUTPUT);
