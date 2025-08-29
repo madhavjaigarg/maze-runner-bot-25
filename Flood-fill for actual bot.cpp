@@ -57,9 +57,9 @@ long readProximity(int trigPin, int echoPin){
     delayMicroseconds(5);
     digitalWrite(trigPin, LOW);
 
-    long duration = pulsIn(echoPin, HIGH, 20000);
+    long duration = pulseIn(echoPin, HIGH, 20000);
     long distance = duration * 0.034 / 2;
-      return distance;
+    return distance;
     
 }
 namespace Mouse {
@@ -120,15 +120,15 @@ bool senseRelative(Heading rel) {
 
     switch (rel) {
         case N: { // Front sensors
-            return readProximity(usft, usfe) > threshold;
+            return readProximity(usft, usfe) < threshold;
         }
 
         case W: // Left sensor
-            return readProximity(uslt, usle) > threshold;
+            return readProximity(uslt, usle) < threshold;
             break;
 
         case E: // Right sensor
-            return readProximity(usrt, usre) > threshold;
+            return readProximity(usrt, usre) < threshold;
             break;
 
         case S:
@@ -246,8 +246,8 @@ void stepForward() {
 
         // --- NEW: Wall centering ---
         const int threshold = 100; // same as senseRelative
-        int leftVal = leftSensor.proximityAvailable() ? leftSensor.readProximity() : 0;
-        int rightVal = rightSensor.proximityAvailable() ? rightSensor.readProximity() : 0;
+        int leftVal = readProximity(uslt, usle);
+        int rightVal = readProximity(usrt, usre);
 
         float wallError = 0;
         bool leftWall = (leftVal > threshold);
@@ -462,13 +462,16 @@ void actualRun() {
 }
 
 void setup() {
-
+    //leftsensor
     pinMode (uslt, OUTPUT);
-    pinMode (usle, IONPUT);
+    pinMode (usle, INPUT);
+    //rightsensor
     pinMode (usrt, OUTPUT);
     pinMode (usre, INPUT);
+    //frontsensor
     pinMode (usft, OUTPUT);
-    pinMode (usre, INPUT);
+    pinMode (usfe, INPUT);
+    
     pinMode(leftForward, OUTPUT);
     pinMode(leftBack, OUTPUT);
     pinMode(rightForward, OUTPUT);
