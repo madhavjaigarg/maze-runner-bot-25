@@ -181,6 +181,15 @@ bool senseAllSidesAndCheckNew() {
     return changed;
 }
 
+void tripSensor(){
+    if (digitalRead(touchSensor1) == HIGH || digitalRead(touchSensor2) == HIGH ) {
+        stepBack();
+        wallCenter();
+        delay(1000); //TUNE
+        setMotorPWM(0, 0);
+    }
+}
+
 void turnLeft() {
     updateYaw();
     float startYaw = yawAngle;
@@ -193,6 +202,8 @@ void turnLeft() {
         setMotorPWM(-100, 100); // left back, right forward
 
         if (millis() - startTime > 2000) break;  // NEW timeout (2s safety)
+
+        tripSensor();
     }
     
     setMotorPWM(0, 0);
@@ -212,7 +223,9 @@ void turnRight() {
         updateYaw();
         setMotorPWM(100, -100); // left forward, right back
 
-        if (millis() - startTime > 2000) break;  // NEW timeout (2s safety)        
+        if (millis() - startTime > 2000) break;  // NEW timeout (2s safety) 
+
+        tripSensor();
     }
 
     setMotorPWM(0, 0);
@@ -224,6 +237,7 @@ void stepBack() {
     delay(500);
     setMotorPWM(0,0);
 }
+
 void face(Heading h){
     int dt=((int)h-(int)facing_)&3;
     if(dt==1) turnRight();
@@ -283,12 +297,7 @@ void stepForward() {
            
         wallCenter();
         
-        if (digitalRead(touchSensor1) == HIGH || digitalRead(touchSensor2) == HIGH) {
-            stepBack();
-            wallCenter();
-            delay(1000); //TUNE
-            setMotorPWM(0, 0);
-        }
+        tripSensor();
     }
 
     setMotorPWM(0, 0); // stop
@@ -506,13 +515,7 @@ void setup() {
 }
 
 void loop(){
-    
-    if (digitalRead(touchSensor1) == HIGH || digitalRead(touchSensor2) == HIGH ) {
-        Mouse::stepBack();
-        Mouse::wallCenter();
-        delay(1000);
-        setMotorPWM(0, 0)
-    }
-    
     actualRun();
+
+    tripSensor();
 }
