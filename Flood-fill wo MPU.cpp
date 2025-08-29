@@ -3,7 +3,6 @@
 #include <stdint.h>
 #include <Wire.h>
 #include <vector>
-#include <MPU9250_WE.h> 
 #include <math.h>
 
 #define touchSensor1 14
@@ -158,6 +157,15 @@ bool senseAllSidesAndCheckNew() {
     return changed;
 }
 
+void tripSensor(){
+    if (digitalRead(touchSensor1) == HIGH || digitalRead(touchSensor2) == HIGH ) {
+        Mouse::stepBack();
+        Mouse::wallCenter();
+        delay(1000); //TUNE
+        setMotorPWM(0, 0);
+    }
+}
+
 void turnLeft() {
     setMotorPWM(-120, 120);
     delay(400);  // tune this
@@ -227,12 +235,7 @@ void stepForward() {
 
         wallCenter();
         
-        if (digitalRead(touchSensor1) == HIGH || digitalRead(touchSensor2) == HIGH) {
-            stepBack();
-            wallCenter();
-            delay(1000); //TUNE
-            setMotorPWM(0,0);
-        }
+        tripSensor();
     }
 
     setMotorPWM(0, 0);
@@ -428,13 +431,6 @@ void setup() {
 }
 
 void loop(){
-    
-    if (digitalRead(touchSensor1) == HIGH || digitalRead(touchSensor2) == HIGH ) {
-        Mouse::stepBack();
-        Mouse::wallCenter();
-        delay(1000); //TUNE
-        setMotorPWM(0, 0);
-    }
-    
     actualRun();
+    Mouse::tripSensor();
 }
