@@ -93,7 +93,7 @@ float kp = 1.2, ki = 0.0, kd = 0.05;
 float previousError = 0, integral = 0;
 
 bool senseRelative(Heading rel) {
-    const int threshold = 100; //CHANGE THRESHOLD
+    const int threshold = 100; //CHANGE THRESHOLD TUNE
 
     switch (rel) {
         case N: { // Front sensors
@@ -119,7 +119,7 @@ bool senseRelative(Heading rel) {
 float computePID(float error) {
     integral += error;
     // prevent windup
-    integral = constrain(integral, -100.0f, 100.0f);
+    integral = constrain(integral, -100.0f, 100.0f); 
 
     float derivative = error - previousError;
     previousError = error;
@@ -174,7 +174,7 @@ void turnRight() {
 
 void stepBack() {
     setMotorPWM(-100,-100);
-    delay(500);
+    delay(500); //TUNE
     setMotorPWM(0,0);
 }
 void face(Heading h){
@@ -184,14 +184,8 @@ void face(Heading h){
     else if(dt==2){turnRight();turnRight();}
 }
 
-//CALIBRATE SERVO MOTOR
-// ---- STEP FORWARD WITHOUT MPU ----
-void stepForward() {
-    unsigned long startTime = millis();
-    unsigned long travelTime = 1000; // tune for one cell
-
-    while (millis() - startTime < travelTime) {
-        const int threshold = 100;
+void wallCenter() {
+    const int threshold = 100; //TUNE
         int leftVal = readProximity(uslt, usle);
         int rightVal = readProximity(usrt, usre);
 
@@ -206,10 +200,24 @@ void stepForward() {
         int baseSpeed = 120;
         int leftSpeed = baseSpeed - wallError;
         int rightSpeed = baseSpeed + wallError;
-        setMotorPWM(leftSpeed, rightSpeed);
+        setMotorPWM(leftSpeed, rightSpeed);    
+}
 
+//CALIBRATE SERVO MOTOR
+// ---- STEP FORWARD WITHOUT MPU ----
+void stepForward() {
+    unsigned long startTime = millis();
+    unsigned long travelTime = 1000; // tune for one cell
+
+    while (millis() - startTime < travelTime) {
+
+        wallCenter();
+        
         if (digitalRead(touchSensor1) == HIGH || digitalRead(touchSensor2) == HIGH) {
             stepBack();
+            wallCenter();
+            delay(1000); //TUNE
+            setMotorPWM(0,0);
         }
     }
 
@@ -318,7 +326,7 @@ void solve() {
         }
 
         // Wait 5 seconds at center
-        delay(5000);
+        delay(2000); //TUNE
 
         // Return to start by walking the same path in reverse
         for (auto it = shorterPath.rbegin(); it != shorterPath.rend(); ++it) {
@@ -417,6 +425,9 @@ void loop(){
     
     if (digitalRead(touchSensor1) == HIGH || digitalRead(touchSensor2) == HIGH ) {
         Mouse::stepBack();
+        Mouse::wallCenter();
+        delay(1000); //TUNE
+        setMotorPWM(0, 0);
     }
     
     actualRun();
