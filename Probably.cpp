@@ -57,6 +57,12 @@ long readProximity(int trigPin, int echoPin){
     return distance;
     
 }
+
+//-----MAZE SIZE & DIMENSIONS------
+int width = 5;
+int height = 8;
+int goal = 1; //update array sizes too
+
 namespace Mouse {
 
 enum Heading {N=0, E=1, S=2, W=3};
@@ -77,13 +83,12 @@ inline Heading opp(Heading h){return Heading((int(h)+2)&3);}
 
 struct Cell {unsigned bits; Cell():bits(0){}};
 
-static int mazeW=5, mazeH=8; // updated from 16x16
+static int mazeW=width, mazeH=height; // updated from 16x16
 static Cell maze[5][8];      // updated size
 static uint8_t dist[5][8];   // updated size
 static int x_=0,y_=0;
 static Heading facing_=N;
 static std::vector<std::pair<int,int>> goals;
-static std::vector<std::tuple<int,int,Heading>> forwardPath;
 static std::vector<std::tuple<int,int,Heading>> returnPath;
 static bool runFast = false;
 
@@ -261,7 +266,6 @@ void recomputeDistances(){
             if(dist[nx][ny]==INF){dist[nx][ny]=cd+1; q.push(std::make_pair(nx,ny));}
         }
     }
-    for(int x=0;x<mazeW;x++) for(int y=0;y<mazeH;y++) if(dist[x][y]<INF) showDist(x,y,dist[x][y]);
 }
 
 void computeToStart(){
@@ -290,19 +294,22 @@ bool atGoal(){
 }
 
 void init(){
-    mazeW=5; mazeH=8;
-    if(mazeW>5) mazeW=5; 
-    if(mazeH>8) mazeH=5;
-
+    mazeW=width; mazeH=height;
     for(int x=0;x<mazeW;x++){setWallKnown(x,0,S,true);setWallKnown(x,mazeH-1,N,true);} 
     for(int y=0;y<mazeH;y++){setWallKnown(0,y,W,true);setWallKnown(mazeW-1,y,E,true);} 
-
-    goals.clear(); 
-    goals.push_back(std::make_pair(4,7));
-
-    recomputeDistances(); 
-    senseAllSidesAndCheckNew(); 
-    recomputeDistances();
+    int cx0, cx1, cy0, cy1; // declare here, so they're visible later
+    if (goal == 1){   
+        cx0=mazeW-1; cx1=mazeW-1; cy0=mazeH-1; cy1=mazeH-1;
+    } else {
+        cx0=(mazeW-1)/2; cx1=mazeW/2; cy0=(mazeH-1)/2; cy1=mazeH/2;
+    }
+    goals.clear(); goals.push_back(std::make_pair(cx0,cy0));
+    if(cx1!=cx0||cy1!=cy0){
+        goals.push_back(std::make_pair(cx1,cy0));
+        goals.push_back(std::make_pair(cx0,cy1));
+        goals.push_back(std::make_pair(cx1,cy1));
+    }
+    recomputeDistances(); senseAllSidesAndCheckNew(); recomputeDistances();
 }
 
 
@@ -311,7 +318,9 @@ void returnToStart(){
     returnPath.clear();
     while(!atGoal()){
         int tx=x_, ty=y_; Heading th=facing_;
-        if(!chooseNextCell(tx,ty,th)){Serial.println("No path!"); break;}
+        if(!chooseNextCell(tx,ty,th)){
+            Serial.println("No path!"); break;
+        }
         face(th); stepForward();
         if (!runFast)
             returnPath.emplace_back(x_, y_, facing_);
@@ -324,31 +333,33 @@ void solve() {
 
     if (runFast) {
         // Check if paths are valid
-        if (forwardPath.empty() || returnPath.empty()) {
+        if (returnPath.empty()) {
             runFast = false; // fallback
                 returnPath.clear(); //Clearing Caches
-                forwardPath.clear();
         }
     }
 
     if (runFast) {
         // Choose shorter path to goal
-        bool usedForward = forwardPath.size() <= returnPath.size();
-        const auto &shorterPath = usedForward ? forwardPath : returnPath;
+        const auto &shorterPath = returnPath;
 
-        // Go to center (goal) using shorter path
-        for (const auto &[tx, ty, th] : shorterPath) {
+        // Go to center (goal) using return path
+        for (auto it = returnPath.rbegin(); it != returnPath.rend(); ++it) {
+            int tx, ty; Heading th;
+            std::tie(tx, ty, th) = *it;
             face(th);
             stepForward();
         }
 
-        // Wait 5 seconds at center
-        delay(2000); //TUNE
 
-        // Return to start by walking the same path in reverse
-        for (auto it = shorterPath.rbegin(); it != shorterPath.rend(); ++it) {
-            const auto &[tx, ty, th] = *it;
-            face(th);
+        // Wait 2 seconds at goal
+        delay(2000); //TUNE
+        
+        // Return to start by walking the same path 
+        for (const auto &step : returnPath) {
+            int tx, ty; Heading th;
+            std::tie(tx, ty, th) = step;
+            face(opp(th));
             stepForward();
         }
 
@@ -362,24 +373,22 @@ void solve() {
             }
             face(th);
             stepForward();
-            forwardPath.emplace_back(x_, y_, facing_);
             if (senseAllSidesAndCheckNew()) {
                 recomputeDistances();
             }
         }
 
-        // Wait 5 seconds at center before returning
-        delay(5000);
-
+        // Wait 2 seconds at center before returning
+        delay(2000);
         // Return to start and record return path
         returnToStart();
     }
 }
 
-void waitForButton() {
+/*void waitForButton() {
     while (digitalRead(touchSensor1) == LOW || digitalRead(touchSensor2) == LOW) { }
     delay(10);
-}
+}*/
 
 } // namespace Mouse
 
@@ -390,21 +399,20 @@ void actualRun() {
     delay(1000);
 
     returnPath.clear();
-    forwardPath.clear();
     x_ = y_ = 0;
     facing_ = N;
     runFast = false;
 
-    waitForButton();
-    solve();
-
-    /*runFast = true; x_ = y_ = 0; facing_ = N;
-    waitForButton();
+    delay(2000);
     solve();
 
     runFast = true; x_ = y_ = 0; facing_ = N;
-    waitForButton();
-    solve(); */
+    delay(2000);
+    solve();
+
+    runFast = true; x_ = y_ = 0; facing_ = N;
+    delay(2000);
+    solve(); 
 }
 
 void setup() {
@@ -432,4 +440,5 @@ void setup() {
 
 void loop(){
     actualRun();
+    Mouse::tripSensor();
 }
