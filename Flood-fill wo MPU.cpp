@@ -185,23 +185,37 @@ void face(Heading h){
 }
 
 void wallCenter() {
-    const int threshold = 100; //TUNE
-        int leftVal = readProximity(uslt, usle);
-        int rightVal = readProximity(usrt, usre);
+    const int threshold = 200;     // Max distance to treat as wall (mm, tune)
+    const int targetWall = 120;    // Desired distance from wall (mm, tune)
+    int leftVal  = readProximity(uslt, usle);
+    int rightVal = readProximity(usrt, usre);
 
-        float wallError = 0;
-        if (leftVal < threshold && rightVal < threshold)
-            wallError = (leftVal - rightVal) * 0.5f; 
-        else if (leftVal < threshold)
-            wallError = (leftVal - 150) * 0.5f;
-        else if (rightVal < threshold)
-            wallError = (150 - rightVal) * 0.5f;
+    float error = 0;
 
-        int baseSpeed = 120;
-        int leftSpeed = baseSpeed - wallError;
-        int rightSpeed = baseSpeed + wallError;
-        setMotorPWM(leftSpeed, rightSpeed);    
+    // --- Error calculation ---
+    if (leftVal < threshold && rightVal < threshold) {
+        // Both walls present → balance between them
+        error = (leftVal - rightVal);
+    }
+    else if (leftVal < threshold) {
+        error = (leftVal - targetWall);
+    }
+    else if (rightVal < threshold) {
+        error = (targetWall - rightVal);
+    }
+    else {
+        error = 0;
+    }
+    // --- PID correction ---
+    float correction = computePID(error);
+    // --- Motor speeds ---
+    int baseSpeed = 120;   // forward cruising speed, tune this
+    int leftSpeed  = baseSpeed - correction;
+    int rightSpeed = baseSpeed + correction;
+    
+    setMotorPWM(leftSpeed, rightSpeed);
 }
+
 
 //CALIBRATE SERVO MOTOR
 // ---- STEP FORWARD WITHOUT MPU ----
@@ -378,19 +392,13 @@ void actualRun() {
     facing_ = N;
     runFast = false;
 
-    yawAngle = 0;
-    myMPU.autoOffsets(); // does accel + gyro bias correction
     waitForButton();
     solve();
-    
-    yawAngle = 0;
-    myMPU.autoOffsets(); // does accel + gyro bias correction
+
     runFast = true; x_ = y_ = 0; facing_ = N;
     waitForButton();
     solve();
 
-    yawAngle = 0;
-    myMPU.autoOffsets(); // does accel + gyro bias correction
     runFast = true; x_ = y_ = 0; facing_ = N;
     waitForButton();
     solve();
@@ -417,8 +425,6 @@ void setup() {
     Wire.begin();
     Serial.begin(115200);
     
-    Mouse::lastYawTime = millis();
-    Mouse::yawAngle = 0;
 }
 
 void loop(){
