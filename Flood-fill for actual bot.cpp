@@ -231,6 +231,46 @@ void face(Heading h){
     else if(dt==2){turnRight();turnRight();}
 }
 
+void wallCenter() {
+    updateYaw();
+    float headingError = yawAngle - targetYaw;
+    float correction = computePID(headingError);
+    
+    // --- NEW: Wall centering ---
+    const int threshold = 100; // same as senseRelative
+    int leftVal = readProximity(uslt, usle);
+    int rightVal = readProximity(usrt, usre);
+
+    float wallError = 0;
+    bool leftWall = (leftVal < threshold);
+    bool rightWall = (rightVal < threshold);
+
+    if (leftWall && rightWall) {
+        // Use difference to stay centered
+        wallError = (leftVal - rightVal) * 0.5f; 
+    } else if (leftWall) {
+        // Only left wall detected → try to keep a safe distance
+        int targetDist = 150; // tune: desired sensor value
+        wallError = (leftVal - targetDist) * 0.5f;
+    } else if (rightWall) {
+        // Only right wall detected
+           int targetDist = 150; // tune: desired sensor value
+           wallError = (targetDist - rightVal) * 0.5f;
+    } else {
+            // No walls → disable wall correction
+            wallError = 0;
+    }
+
+    float totalCorrection = correction + wallError;
+
+    // Motor speeds
+    int baseSpeed = 120; // tune this
+    int leftSpeed = baseSpeed - totalCorrection;
+    int rightSpeed = baseSpeed + totalCorrection;
+
+    setMotorPWM(leftSpeed, rightSpeed);
+}
+
 //CALIBRATE SERVO MOTOR
 // Step forward with gyro + wall-centering
 void stepForward() {
@@ -240,47 +280,14 @@ void stepForward() {
     unsigned long travelTime = 1000; // ms per cell (tune!)
 
     while (millis() - startTime < travelTime) {
-        updateYaw();
-        float headingError = yawAngle - targetYaw;
-        float correction = computePID(headingError);
-
-        // --- NEW: Wall centering ---
-        const int threshold = 100; // same as senseRelative
-        int leftVal = readProximity(uslt, usle);
-        int rightVal = readProximity(usrt, usre);
-
-        float wallError = 0;
-        bool leftWall = (leftVal < threshold);
-        bool rightWall = (rightVal < threshold);
-
-        if (leftWall && rightWall) {
-            // Use difference to stay centered
-            wallError = (leftVal - rightVal) * 0.5f; 
-        } else if (leftWall) {
-            // Only left wall detected → try to keep a safe distance
-            int targetDist = 150; // tune: desired sensor value
-            wallError = (leftVal - targetDist) * 0.5f;
-        } else if (rightWall) {
-            // Only right wall detected
-            int targetDist = 150; // tune: desired sensor value
-            wallError = (targetDist - rightVal) * 0.5f;
-        } else {
-            // No walls → disable wall correction
-            wallError = 0;
-        }
-
-        float totalCorrection = correction + wallError;
-
-        // Motor speeds
-        int baseSpeed = 120; // tune this
-        int leftSpeed = baseSpeed - totalCorrection;
-        int rightSpeed = baseSpeed + totalCorrection;
-
-        setMotorPWM(leftSpeed, rightSpeed);
-
+           
+        wallCenter();
+        
         if (digitalRead(touchSensor1) == HIGH || digitalRead(touchSensor2) == HIGH) {
             stepBack();
-            
+            wallCenter();
+            delay(1000); //TUNE
+            setMotorPWM(0, 0);
         }
     }
 
@@ -502,6 +509,9 @@ void loop(){
     
     if (digitalRead(touchSensor1) == HIGH || digitalRead(touchSensor2) == HIGH ) {
         Mouse::stepBack();
+        Mouse::wallCenter();
+        delay(1000);
+        setMotorPWM(0, 0)
     }
     
     actualRun();
