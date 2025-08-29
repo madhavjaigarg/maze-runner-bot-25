@@ -498,7 +498,7 @@ void loop(){
     
     if (digitalRead(touchSensor1) == HIGH || digitalRead(touchSensor2) == HIGH ) {
         Mouse::stepBack();
-    }    
-
+    }
+    
     actualRun();
 }
