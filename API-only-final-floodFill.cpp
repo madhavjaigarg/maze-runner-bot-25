@@ -383,7 +383,7 @@ void solve() {
         for (auto it = returnPath.rbegin(); it != returnPath.rend(); ++it) {
             int tx, ty; Heading th;
             std::tie(tx, ty, th) = *it;
-            face(th);
+            face(opp(th));
             stepForward();
         }
 
@@ -396,7 +396,7 @@ void solve() {
         for (const auto &step : returnPath) {
             int tx, ty; Heading th;
             std::tie(tx, ty, th) = step;
-            face(opp(th));
+            face(th);
             stepForward();
         }
 
@@ -446,12 +446,16 @@ void actualRun() {
     solve();
     
 
-    runFast = true; x_ = y_ = 0; facing_ = N;
+    runFast = true; x_ = y_ = 0;
+    face(N);
+    facing_ = N;
     //delay(2000);
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
     solve();
 
-    runFast = true; x_ = y_ = 0; facing_ = N;
+    runFast = true; x_ = y_ = 0; 
+    face(N);
+    facing_ = N;
     //delay(2000);
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
     solve(); 
