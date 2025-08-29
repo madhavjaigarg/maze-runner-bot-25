@@ -9,10 +9,6 @@
 #define touchSensor1 14
 #define touchSensor2 15
 
-// ----------------- MPU9250 -----------------
-#define MPU_ADDR 0x68
-MPU9250_WE myMPU(MPU_ADDR);
-
 // ----------------- MOTOR DRIVER PINS -----------------
 #define leftForward 11
 #define leftBack 12
@@ -96,25 +92,6 @@ static bool runFast = false;
 float kp = 1.2, ki = 0.0, kd = 0.05;
 float previousError = 0, integral = 0;
 
-// GYRO  
-float yawAngle = 0;
-unsigned long lastYawTime;
-
-void updateYaw() {
-    unsigned long now = millis();
-    float dt = (now - lastYawTime) / 1000.0f;
-    lastYawTime = now;
-
-    xyzFloat g = myMPU.getGyrValues();
-    float gyroZ = g.z;  // deg/s
-
-    yawAngle += gyroZ * dt;
-
-    // Keep in [-180, 180]
-    if (yawAngle > 180.0f) yawAngle -= 360.0f;
-    if (yawAngle < -180.0f) yawAngle += 360.0f;
-}
-
 bool senseRelative(Heading rel) {
     const int threshold = 100; //CHANGE THRESHOLD
 
@@ -182,41 +159,17 @@ bool senseAllSidesAndCheckNew() {
 }
 
 void turnLeft() {
-    updateYaw();
-    float startYaw = yawAngle;
-    float targetYaw = startYaw - 90;
-    unsigned long startTime = millis();    
-    if (targetYaw < -180) targetYaw += 360;
-
-    while (fabs(yawAngle - targetYaw) > 2) {
-        updateYaw();
-        setMotorPWM(-100, 100); // left back, right forward
-
-        if (millis() - startTime > 2000) break;  // NEW timeout (2s safety)
-    }
-    
+    setMotorPWM(-120, 120);
+    delay(400);  // tune this
     setMotorPWM(0, 0);
-    delay(100);
+    facing_ = Heading((facing_ + 3) & 3);
 }
 
-
-
 void turnRight() {
-    updateYaw();
-    float startYaw = yawAngle;
-    float targetYaw = startYaw + 90;
-    unsigned long startTime = millis();
-    if (targetYaw > 180) targetYaw -= 360;
-
-    while (fabs(yawAngle - targetYaw) > 2) {
-        updateYaw();
-        setMotorPWM(100, -100); // left forward, right back
-
-        if (millis() - startTime > 2000) break;  // NEW timeout (2s safety)        
-    }
-
+    setMotorPWM(120, -120);
+    delay(400);  // tune this
     setMotorPWM(0, 0);
-    delay(100);
+    facing_ = Heading((facing_ + 1) & 3);
 }
 
 void stepBack() {
@@ -232,67 +185,40 @@ void face(Heading h){
 }
 
 //CALIBRATE SERVO MOTOR
-// Step forward with gyro + wall-centering
+// ---- STEP FORWARD WITHOUT MPU ----
 void stepForward() {
-    updateYaw();
-    float targetYaw = yawAngle;  // lock heading at start
     unsigned long startTime = millis();
-    unsigned long travelTime = 1000; // ms per cell (tune!)
+    unsigned long travelTime = 1000; // tune for one cell
 
     while (millis() - startTime < travelTime) {
-        updateYaw();
-        float headingError = yawAngle - targetYaw;
-        float correction = computePID(headingError);
-
-        // --- NEW: Wall centering ---
-        const int threshold = 100; // same as senseRelative
+        const int threshold = 100;
         int leftVal = readProximity(uslt, usle);
         int rightVal = readProximity(usrt, usre);
 
         float wallError = 0;
-        bool leftWall = (leftVal < threshold);
-        bool rightWall = (rightVal < threshold);
-
-        if (leftWall && rightWall) {
-            // Use difference to stay centered
+        if (leftVal < threshold && rightVal < threshold)
             wallError = (leftVal - rightVal) * 0.5f; 
-        } else if (leftWall) {
-            // Only left wall detected → try to keep a safe distance
-            int targetDist = 150; // tune: desired sensor value
-            wallError = (leftVal - targetDist) * 0.5f;
-        } else if (rightWall) {
-            // Only right wall detected
-            int targetDist = 150; // tune: desired sensor value
-            wallError = (targetDist - rightVal) * 0.5f;
-        } else {
-            // No walls → disable wall correction
-            wallError = 0;
-        }
+        else if (leftVal < threshold)
+            wallError = (leftVal - 150) * 0.5f;
+        else if (rightVal < threshold)
+            wallError = (150 - rightVal) * 0.5f;
 
-        float totalCorrection = correction + wallError;
-
-        // Motor speeds
-        int baseSpeed = 120; // tune this
-        int leftSpeed = baseSpeed - totalCorrection;
-        int rightSpeed = baseSpeed + totalCorrection;
-
+        int baseSpeed = 120;
+        int leftSpeed = baseSpeed - wallError;
+        int rightSpeed = baseSpeed + wallError;
         setMotorPWM(leftSpeed, rightSpeed);
 
         if (digitalRead(touchSensor1) == HIGH || digitalRead(touchSensor2) == HIGH) {
             stepBack();
-            
         }
     }
 
-    setMotorPWM(0, 0); // stop
-
+    setMotorPWM(0, 0);
     delay(10);
-    
-    // Update grid position
+
     if (facing_ == N) y_++;
     else if (facing_ == E) x_++;
     else if (facing_ == S) y_--;
-    else x_--;
 }
 
 void recomputeDistances(){
@@ -479,23 +405,12 @@ void setup() {
     pinMode(rightBack, OUTPUT);
     pinMode(touchSensor1, INPUT);
     pinMode(touchSensor2, INPUT);
+    
     Wire.begin();
     Serial.begin(115200);
-
-    if (!myMPU.init()) {  
-        Serial.println("MPU9250 init failed!");
-        while (1);
-    }
-
-    myMPU.setGyrRange(MPU9250_GYRO_RANGE_250);
-    myMPU.setAccRange(MPU9250_ACC_RANGE_2G);
-    myMPU.setGyrDLPF(MPU9250_DLPF_4);   // Gyro filter at 20 Hz
-    myMPU.setAccDLPF(MPU9250_DLPF_4);   // Accel filter at ~21 Hz
-    myMPU.setSampleRateDivider(19);
-
+    
     Mouse::lastYawTime = millis();
     Mouse::yawAngle = 0;
-    myMPU.autoOffsets(); // does accel + gyro bias correction
 }
 
 void loop(){
