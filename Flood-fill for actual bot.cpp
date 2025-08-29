@@ -54,7 +54,7 @@ long readProximity(int trigPin, int echoPin){
     digitalWrite(trigPin, LOW);
     delayMicroseconds(2);
     digitalWrite(trigPin, HIGH);
-    delayMicroseconds(5);
+    delayMicroseconds(10);
     digitalWrite(trigPin, LOW);
 
     long duration = pulseIn(echoPin, HIGH, 20000);
