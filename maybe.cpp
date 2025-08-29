@@ -216,7 +216,7 @@ void wallCenter() {
 }
 
 void tripSensor(){
-    if (digitalRead(touchSensor1) == HIGH || digitalRead(touchSensor2) == HIGH ) {
+    if (digitalRead(touchSensor1) == LOW || digitalRead(touchSensor2) == LOW ) {
         Mouse::stepBack();
         Mouse::wallCenter();
         delay(1000); //TUNE
@@ -228,7 +228,7 @@ void tripSensor(){
 // ---- STEP FORWARD WITHOUT MPU ----
 void stepForward() {
     unsigned long startTime = millis();
-    unsigned long travelTime = 1000; // tune for one cell
+    unsigned long travelTime = 450; // tune for one cell
 
     while (millis() - startTime < travelTime) {
 
@@ -243,6 +243,7 @@ void stepForward() {
     if (facing_ == N) y_++;
     else if (facing_ == E) x_++;
     else if (facing_ == S) y_--;
+    else x_--;
 }
 
 void recomputeDistances() {
@@ -402,7 +403,7 @@ void solve() {
 }
 
 void waitForButton() {
-    while (digitalRead(touchSensor1) == HIGH || digitalRead(touchSensor2) == HIGH) { }
+    while (digitalRead(touchSensor1) == LOW || digitalRead(touchSensor2) == LOW) { }
     delay(10);
 }
 
@@ -447,8 +448,8 @@ void setup() {
     pinMode(leftBack, OUTPUT);
     pinMode(rightForward, OUTPUT);
     pinMode(rightBack, OUTPUT);
-    pinMode(touchSensor1, INPUT);
-    pinMode(touchSensor2, INPUT);
+    pinMode(touchSensor1, INPUT_PULLUP);
+    pinMode(touchSensor2, INPUT_PULLUP);
     
     Wire.begin();
     Serial.begin(115200);
@@ -456,6 +457,6 @@ void setup() {
 }
 
 void loop(){
-    actualRun();
-    Mouse::tripSensor();
+    //actualRun();
+    Mouse::solve();
 }
