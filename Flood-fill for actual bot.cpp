@@ -181,15 +181,6 @@ bool senseAllSidesAndCheckNew() {
     return changed;
 }
 
-void tripSensor(){
-    if (digitalRead(touchSensor1) == HIGH || digitalRead(touchSensor2) == HIGH ) {
-        stepBack();
-        wallCenter();
-        delay(1000); //TUNE
-        setMotorPWM(0, 0);
-    }
-}
-
 void turnLeft() {
     updateYaw();
     float startYaw = yawAngle;
@@ -283,6 +274,15 @@ void wallCenter() {
     int rightSpeed = baseSpeed + totalCorrection;
 
     setMotorPWM(leftSpeed, rightSpeed);
+}
+
+void tripSensor(){
+    if (digitalRead(touchSensor1) == HIGH || digitalRead(touchSensor2) == HIGH ) {
+        stepBack();
+        wallCenter();
+        delay(1000); //TUNE
+        setMotorPWM(0, 0);
+    }
 }
 
 //CALIBRATE SERVO MOTOR
@@ -408,7 +408,7 @@ void solve() {
         }
 
         // Wait 5 seconds at center
-        delay(5000);
+        delay(2000);
 
         // Return to start by walking the same path in reverse
         for (auto it = shorterPath.rbegin(); it != shorterPath.rend(); ++it) {
@@ -466,13 +466,11 @@ void actualRun() {
     solve();
     
     yawAngle = 0;
-    myMPU.autoOffsets(); // does accel + gyro bias correction
     runFast = true; x_ = y_ = 0; facing_ = N;
     waitForButton();
     solve();
 
     yawAngle = 0;
-    myMPU.autoOffsets(); // does accel + gyro bias correction
     runFast = true; x_ = y_ = 0; facing_ = N;
     waitForButton();
     solve();
@@ -517,5 +515,5 @@ void setup() {
 void loop(){
     actualRun();
 
-    tripSensor();
+    Mouse::tripSensor();
 }
