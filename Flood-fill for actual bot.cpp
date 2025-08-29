@@ -6,18 +6,18 @@
 #include <MPU9250_WE.h> 
 #include <math.h>
 
-#define touchSensor1 11
-#define touchSensor2 12
+#define touchSensor1 14
+#define touchSensor2 15
 
 // ----------------- MPU9250 -----------------
 #define MPU_ADDR 0x68
 MPU9250_WE myMPU(MPU_ADDR);
 
 // ----------------- MOTOR DRIVER PINS -----------------
-#define leftForward 2
-#define leftBack 3
-#define rightForward 4
-#define rightBack 5
+#define leftForward 11
+#define leftBack 12
+#define rightForward 10
+#define rightBack 13
 
 void setMotorPWM (int left, int right){
 
@@ -43,12 +43,12 @@ void setMotorPWM (int left, int right){
 }
 
 //--------------ULTRASONIC SENSOR-----------
-#define uslt 6
-#define usle 9
-#define usrt 7
-#define usre 10
-#define usft 8
-#define usfe 13
+#define uslt 3
+#define usle 4
+#define usrt 1
+#define usre 0
+#define usft 2
+#define usfe 6
 
 long readProximity(int trigPin, int echoPin){
     digitalWrite(trigPin, LOW);
