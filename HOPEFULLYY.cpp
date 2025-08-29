@@ -77,9 +77,9 @@ inline Heading opp(Heading h){return Heading((int(h)+2)&3);}
 
 struct Cell {unsigned bits; Cell():bits(0){}};
 
-static int mazeW=9, mazeH=6; // updated from 16x16
-static Cell maze[9][6];      // updated size
-static uint8_t dist[9][6];   // updated size
+static int mazeW=5, mazeH=8; // updated from 16x16
+static Cell maze[5][8];      // updated size
+static uint8_t dist[5][8];   // updated size
 static int x_=0,y_=0;
 static Heading facing_=N;
 static std::vector<std::pair<int,int>> goals;
@@ -246,48 +246,22 @@ void stepForward() {
     else x_--;
 }
 
-void recomputeDistances() {
-    const uint8_t INF = 255;
-    for (int x = 0; x < mazeW; x++) {
-        for (int y = 0; y < mazeH; y++) {
-            dist[x][y] = INF;  // Initialize distances to infinity
+void recomputeDistances(){
+    const int INF=255;
+    for(int x=0;x<mazeW;x++) for(int y=0;y<mazeH;y++) dist[x][y]=INF;
+    std::queue<std::pair<int,int> > q;
+    for(size_t i=0;i<goals.size();++i){int gx=goals[i].first;int gy=goals[i].second;if(inBounds(gx,gy)){dist[gx][gy]=0;q.push(goals[i]);}}
+    while(!q.empty()){
+        int cx=q.front().first, cy=q.front().second; q.pop(); int cd=dist[cx][cy];
+        static const int dx[4]={0,1,0,-1}; static const int dy[4]={1,0,-1,0}; static const Heading hh[4]={N,E,S,W};
+        for(int k=0;k<4;k++){
+            int nx=cx+dx[k], ny=cy+dy[k]; Heading h=hh[k];
+            if(!inBounds(nx,ny)) continue;
+            if(knowSide(cx,cy,h)&&haveWall(cx,cy,h)) continue;
+            if(dist[nx][ny]==INF){dist[nx][ny]=cd+1; q.push(std::make_pair(nx,ny));}
         }
     }
-    std::queue<std::pair<int, int>> q;
-    
-    // Set the goal position distances to 0
-    for (size_t i = 0; i < goals.size(); ++i) {
-        int gx = goals[i].first;
-        int gy = goals[i].second;
-        if (inBounds(gx, gy)) {
-            dist[gx][gy] = 0;  // Distance to goal is 0
-            q.push(goals[i]);
-        }
-    }
-
-    // Use BFS to compute distances
-    while (!q.empty()) {
-        int cx = q.front().first;
-        int cy = q.front().second;
-        q.pop();
-        int cd = dist[cx][cy];
-        
-        static const int dx[4] = {0, 1, 0, -1};
-        static const int dy[4] = {1, 0, -1, 0};
-        static const Heading hh[4] = {N, E, S, W};
-        
-        for (int k = 0; k < 4; k++) {
-            int nx = cx + dx[k], ny = cy + dy[k];
-            Heading h = hh[k];
-            if (!inBounds(nx, ny)) continue;  // Ensure we're within bounds
-            if (knowSide(cx, cy, h) && haveWall(cx, cy, h)) continue;  // Check for walls
-            
-            if (dist[nx][ny] == INF) {  // If not visited
-                dist[nx][ny] = cd + 1;  // Set the distance
-                q.push(std::make_pair(nx, ny));  // Add to the queue
-            }
-        }
-    }
+    for(int x=0;x<mazeW;x++) for(int y=0;y<mazeH;y++) if(dist[x][y]<INF) showDist(x,y,dist[x][y]);
 }
 
 void computeToStart(){
@@ -316,15 +290,15 @@ bool atGoal(){
 }
 
 void init(){
-    mazeW=9; mazeH=6;
-    if(mazeW>9) mazeW=9; 
-    if(mazeH>6) mazeH=6;
+    mazeW=5; mazeH=8;
+    if(mazeW>5) mazeW=5; 
+    if(mazeH>8) mazeH=5;
 
     for(int x=0;x<mazeW;x++){setWallKnown(x,0,S,true);setWallKnown(x,mazeH-1,N,true);} 
     for(int y=0;y<mazeH;y++){setWallKnown(0,y,W,true);setWallKnown(mazeW-1,y,E,true);} 
 
     goals.clear(); 
-    goals.push_back(std::make_pair(8,5)); // target at (8,5)
+    goals.push_back(std::make_pair(4,7));
 
     recomputeDistances(); 
     senseAllSidesAndCheckNew(); 
@@ -424,13 +398,13 @@ void actualRun() {
     waitForButton();
     solve();
 
-    runFast = true; x_ = y_ = 0; facing_ = N;
+    /*runFast = true; x_ = y_ = 0; facing_ = N;
     waitForButton();
     solve();
 
     runFast = true; x_ = y_ = 0; facing_ = N;
     waitForButton();
-    solve();
+    solve(); */
 }
 
 void setup() {
@@ -457,6 +431,5 @@ void setup() {
 }
 
 void loop(){
-    //actualRun();
-    Mouse::solve();
+    actualRun();
 }
