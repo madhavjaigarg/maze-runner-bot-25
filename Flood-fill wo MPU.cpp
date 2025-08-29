@@ -157,15 +157,6 @@ bool senseAllSidesAndCheckNew() {
     return changed;
 }
 
-void tripSensor(){
-    if (digitalRead(touchSensor1) == HIGH || digitalRead(touchSensor2) == HIGH ) {
-        Mouse::stepBack();
-        Mouse::wallCenter();
-        delay(1000); //TUNE
-        setMotorPWM(0, 0);
-    }
-}
-
 void turnLeft() {
     setMotorPWM(-120, 120);
     delay(400);  // tune this
@@ -224,6 +215,14 @@ void wallCenter() {
     setMotorPWM(leftSpeed, rightSpeed);
 }
 
+void tripSensor(){
+    if (digitalRead(touchSensor1) == HIGH || digitalRead(touchSensor2) == HIGH ) {
+        Mouse::stepBack();
+        Mouse::wallCenter();
+        delay(1000); //TUNE
+        setMotorPWM(0, 0);
+    }
+}
 
 //CALIBRATE SERVO MOTOR
 // ---- STEP FORWARD WITHOUT MPU ----
