@@ -250,8 +250,8 @@ void stepForward() {
         int rightVal = readProximity(usrt, usre);
 
         float wallError = 0;
-        bool leftWall = (leftVal > threshold);
-        bool rightWall = (rightVal > threshold);
+        bool leftWall = (leftVal < threshold);
+        bool rightWall = (rightVal < threshold);
 
         if (leftWall && rightWall) {
             // Use difference to stay centered
@@ -280,6 +280,7 @@ void stepForward() {
 
         if (digitalRead(touchSensor1) == HIGH || digitalRead(touchSensor2) == HIGH) {
             stepBack();
+            
         }
     }
 
@@ -386,7 +387,7 @@ void solve() {
 
         // Go to center (goal) using shorter path
         for (const auto &[tx, ty, th] : shorterPath) {
-            face(opp(th));
+            face(th);
             stepForward();
         }
 
